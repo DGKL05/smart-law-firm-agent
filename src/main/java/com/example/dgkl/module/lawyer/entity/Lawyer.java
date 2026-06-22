@@ -20,5 +20,6 @@ public class Lawyer extends BaseEntity {
     private Integer experienceYears;
     private String description;
     private String goodAt;
+    private String availableTimeSlots;
     private Integer status;
 }

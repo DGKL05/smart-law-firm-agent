@@ -3,7 +3,7 @@ const commonFields = {
     ['title', '标题'], ['lawFirmId', '律所ID', 'number'], ['lawyerId', '律师ID', 'number'], ['question', '问题'], ['reply', '回复'], ['status', '状态']
   ],
   cases: [
-    ['caseNo', '案件编号'], ['title', '标题'], ['caseType', '案件类型'], ['description', '描述'], ['status', '状态']
+    ['caseNo', '案件编号'], ['title', '标题'], ['caseType', '案件类型'], ['description', '描述'], ['caseTime', '案件时间', 'datetime'], ['status', '状态']
   ],
   appointments: [
     ['lawFirmId', '律所ID', 'number'], ['lawyerId', '律师ID', 'number'], ['lawFirmName', '律所名称'], ['lawyerName', '律师名称'], ['appointmentTime', '预约时间', 'datetime'], ['remark', '备注'], ['status', '状态']

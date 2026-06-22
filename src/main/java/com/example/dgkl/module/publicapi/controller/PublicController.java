@@ -6,8 +6,12 @@ import com.example.dgkl.common.PageResult;
 import com.example.dgkl.common.Result;
 import com.example.dgkl.module.lawfirm.entity.LawFirm;
 import com.example.dgkl.module.lawfirm.service.LawFirmService;
+import com.example.dgkl.module.appointment.service.AppointmentScheduleService;
 import com.example.dgkl.module.lawyer.entity.Lawyer;
 import com.example.dgkl.module.lawyer.service.LawyerService;
+import com.example.dgkl.module.publicapi.dto.PublicLawFirmDetailResponse;
+import com.example.dgkl.module.publicapi.dto.PublicLawyerDetailResponse;
+import com.example.dgkl.module.publicapi.dto.PublicLawyerResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -18,7 +22,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -27,22 +36,25 @@ import java.util.Map;
 public class PublicController {
     private final LawFirmService lawFirmService;
     private final LawyerService lawyerService;
+    private final AppointmentScheduleService appointmentScheduleService;
     private final RedisTemplate<String, Object> redisTemplate;
 
     @GetMapping("/law-firms")
     public Result<PageResult<LawFirm>> lawFirms(@RequestParam(defaultValue = "1") long pageNum,
                                                 @RequestParam(defaultValue = "10") long pageSize,
                                                 @RequestParam(required = false) String provinceCode,
+                                                @RequestParam(required = false) String provinceCodes,
                                                 @RequestParam(required = false) String keyword) {
-        String cacheKey = provinceCode != null && !provinceCode.isBlank() && (keyword == null || keyword.isBlank())
-                ? "lawfirm:province:" + provinceCode + ":" + pageNum + ":" + pageSize : null;
+        List<String> selectedProvinceCodes = selectedProvinceCodes(provinceCode, provinceCodes);
+        String cacheKey = !selectedProvinceCodes.isEmpty() && (keyword == null || keyword.isBlank())
+                ? "lawfirm:province:" + String.join(",", selectedProvinceCodes) + ":" + pageNum + ":" + pageSize : null;
         PageResult<LawFirm> cached = readCache(cacheKey);
         if (cached != null) {
             return Result.success(cached);
         }
         QueryWrapper<LawFirm> wrapper = new QueryWrapper<LawFirm>().eq("status", 1).orderByDesc("create_time");
-        if (provinceCode != null && !provinceCode.isBlank()) {
-            wrapper.eq("province_code", provinceCode);
+        if (!selectedProvinceCodes.isEmpty()) {
+            wrapper.in("province_code", selectedProvinceCodes);
         }
         if (keyword != null && !keyword.isBlank()) {
             wrapper.like("name", keyword);
@@ -53,19 +65,30 @@ public class PublicController {
     }
 
     @GetMapping("/law-firms/{id}")
-    public Result<LawFirm> lawFirm(@PathVariable Long id) {
-        return Result.success(lawFirmService.getById(id));
+    public Result<PublicLawFirmDetailResponse> lawFirm(@PathVariable Long id) {
+        LawFirm lawFirm = lawFirmService.getById(id);
+        if (lawFirm == null) {
+            return Result.success(null);
+        }
+        List<Lawyer> lawyers = lawyerService.list(new QueryWrapper<Lawyer>()
+                .eq("law_firm_id", id)
+                .eq("status", 1)
+                .orderByDesc("create_time"));
+        PublicLawFirmDetailResponse response = PublicLawFirmDetailResponse.of(lawFirm, lawyers);
+        response.getLawyers().forEach(lawyer ->
+                lawyer.setScheduleSlots(appointmentScheduleService.upcomingSlots(lawyer.getId())));
+        return Result.success(response);
     }
 
     @GetMapping("/lawyers")
-    public Result<PageResult<Lawyer>> lawyers(@RequestParam(defaultValue = "1") long pageNum,
-                                              @RequestParam(defaultValue = "10") long pageSize,
-                                              @RequestParam(required = false) String category,
-                                              @RequestParam(required = false) Long lawFirmId,
-                                              @RequestParam(required = false) String keyword) {
+    public Result<PageResult<PublicLawyerResponse>> lawyers(@RequestParam(defaultValue = "1") long pageNum,
+                                                            @RequestParam(defaultValue = "10") long pageSize,
+                                                            @RequestParam(required = false) String category,
+                                                            @RequestParam(required = false) Long lawFirmId,
+                                                            @RequestParam(required = false) String keyword) {
         String cacheKey = category != null && !category.isBlank() && lawFirmId == null && (keyword == null || keyword.isBlank())
                 ? "lawyer:category:" + category + ":" + pageNum + ":" + pageSize : null;
-        PageResult<Lawyer> cached = readCache(cacheKey);
+        PageResult<PublicLawyerResponse> cached = readCache(cacheKey);
         if (cached != null) {
             return Result.success(cached);
         }
@@ -77,16 +100,29 @@ public class PublicController {
             wrapper.eq("law_firm_id", lawFirmId);
         }
         if (keyword != null && !keyword.isBlank()) {
-            wrapper.like("name", keyword).or().like("good_at", keyword);
+            wrapper.and(item -> item.like("name", keyword).or().like("good_at", keyword));
         }
-        PageResult<Lawyer> result = PageResult.of(lawyerService.page(new Page<>(pageNum, pageSize), wrapper));
+        Page<Lawyer> page = lawyerService.page(new Page<>(pageNum, pageSize), wrapper);
+        Map<Long, String> lawFirmNames = lawFirmNames(page.getRecords());
+        PageResult<PublicLawyerResponse> result = new PageResult<>(
+                page.getRecords().stream()
+                        .map(lawyer -> PublicLawyerResponse.of(lawyer, lawFirmNames.get(lawyer.getLawFirmId())))
+                        .toList(),
+                page.getTotal(),
+                page.getCurrent(),
+                page.getSize());
         writeCache(cacheKey, result);
         return Result.success(result);
     }
 
     @GetMapping("/lawyers/{id}")
-    public Result<Lawyer> lawyer(@PathVariable Long id) {
-        return Result.success(lawyerService.getById(id));
+    public Result<PublicLawyerDetailResponse> lawyer(@PathVariable Long id) {
+        Lawyer lawyer = lawyerService.getById(id);
+        if (lawyer == null) {
+            return Result.success(null);
+        }
+        LawFirm lawFirm = lawyer.getLawFirmId() == null ? null : lawFirmService.getById(lawyer.getLawFirmId());
+        return Result.success(PublicLawyerDetailResponse.of(lawyer, lawFirm, appointmentScheduleService.upcomingSlots(id)));
     }
 
     @GetMapping("/home/stats")
@@ -138,5 +174,29 @@ public class PublicController {
         } catch (Exception ex) {
             log.warn("Redis cache write failed: {}", ex.getMessage());
         }
+    }
+
+    private List<String> selectedProvinceCodes(String provinceCode, String provinceCodes) {
+        String value = provinceCodes != null && !provinceCodes.isBlank() ? provinceCodes : provinceCode;
+        if (value == null || value.isBlank()) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(item -> !item.isBlank())
+                .distinct()
+                .toList();
+    }
+
+    private Map<Long, String> lawFirmNames(List<Lawyer> lawyers) {
+        Set<Long> lawFirmIds = lawyers.stream()
+                .map(Lawyer::getLawFirmId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        if (lawFirmIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return lawFirmService.listByIds(lawFirmIds).stream()
+                .collect(Collectors.toMap(LawFirm::getId, LawFirm::getName));
     }
 }

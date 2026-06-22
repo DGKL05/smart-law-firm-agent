@@ -465,6 +465,305 @@ a {
   background: rgba(255, 253, 247, 0.74);
 }
 
+.province-grid,
+.slot-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.province-grid .el-checkbox-button__inner {
+  border-radius: 7px !important;
+}
+
+.slot-list.compact {
+  gap: 6px;
+}
+
+.detail-section {
+  margin-top: 22px;
+}
+
+.detail-page {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.profile-sheet .el-card__body {
+  padding: 26px;
+}
+
+.profile-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: stretch;
+  padding: 24px;
+  margin-bottom: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(135deg, rgba(20, 61, 51, 0.08), transparent 48%),
+    #fffdf7;
+}
+
+.profile-kicker {
+  margin-bottom: 8px;
+  color: var(--brass);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.profile-summary,
+.panel-copy,
+.card-copy {
+  color: var(--ink-soft);
+  line-height: 1.8;
+}
+
+.profile-summary {
+  max-width: 860px;
+  margin: 14px 0 16px;
+  font-size: 15px;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.profile-stat {
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(251, 250, 245, 0.82);
+}
+
+.profile-stat strong {
+  color: var(--forest);
+  font-family: var(--font-display);
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.profile-stat span {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 14px;
+}
+
+.info-panel {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 253, 247, 0.78);
+}
+
+.info-panel.wide {
+  grid-row: span 2;
+}
+
+.panel-title {
+  margin-bottom: 12px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.info-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.info-list.compact-info {
+  grid-template-columns: 1fr;
+}
+
+.info-list div {
+  padding: 12px;
+  border: 1px solid rgba(217, 211, 197, 0.8);
+  border-radius: 7px;
+  background: rgba(251, 250, 245, 0.72);
+}
+
+.info-list dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.info-list dd {
+  margin: 6px 0 0;
+  color: var(--ink);
+  line-height: 1.65;
+}
+
+.process-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.process-list span {
+  padding: 10px 12px;
+  color: var(--forest);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fffdf7;
+  font-weight: 700;
+}
+
+.lawyer-card-grid,
+.appointment-grid,
+.expertise-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.lawyer-card-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lawyer-card,
+.appointment-card,
+.expertise-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 253, 247, 0.82);
+}
+
+.lawyer-card {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  gap: 14px;
+  padding: 16px;
+}
+
+.lawyer-avatar,
+.large-avatar {
+  display: grid;
+  place-items: center;
+  color: #fff8e9;
+  background: var(--forest);
+  border: 1px solid rgba(217, 180, 110, 0.42);
+  border-radius: 8px;
+  font-family: var(--font-display);
+  font-weight: 800;
+}
+
+.lawyer-avatar {
+  width: 58px;
+  height: 58px;
+  font-size: 26px;
+}
+
+.large-avatar {
+  width: 86px;
+  height: 86px;
+  font-size: 40px;
+}
+
+.lawyer-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.card-title-row h3 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.card-actions {
+  margin-top: 12px;
+}
+
+.appointment-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.appointment-card,
+.expertise-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+}
+
+.appointment-card strong,
+.expertise-card strong {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.appointment-card small,
+.expertise-card span {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.appointment-card.unavailable {
+  color: var(--muted);
+  background: rgba(233, 230, 221, 0.72);
+}
+
+.appointment-card.unavailable strong,
+.appointment-card.unavailable small {
+  color: var(--muted);
+}
+
+.appointment-card.mine {
+  border-color: rgba(31, 111, 91, 0.24);
+  background: rgba(31, 111, 91, 0.06);
+}
+
+.appointment-card.unavailable .appointment-mark {
+  color: #7b7469;
+  border-color: rgba(123, 116, 105, 0.24);
+  background: rgba(123, 116, 105, 0.08);
+}
+
+.appointment-mark {
+  width: max-content;
+  padding: 4px 8px;
+  color: var(--success);
+  border: 1px solid rgba(31, 111, 91, 0.28);
+  border-radius: 999px;
+  background: rgba(31, 111, 91, 0.08);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.expertise-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 12px;
+}
+
 .desk-toolbar {
   display: flex;
   justify-content: space-between;
@@ -593,8 +892,17 @@ a {
   }
 
   .feature-grid,
-  .admin-overview {
+  .admin-overview,
+  .profile-hero,
+  .detail-grid,
+  .lawyer-card-grid,
+  .appointment-grid,
+  .expertise-grid {
     grid-template-columns: 1fr;
+  }
+
+  .profile-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .sidebar {
@@ -614,5 +922,16 @@ a {
 
   .page {
     padding: 18px;
+  }
+}
+
+@media (max-width: 640px) {
+  .profile-stats,
+  .info-list {
+    grid-template-columns: 1fr;
+  }
+
+  .lawyer-identity {
+    flex-direction: column;
   }
 }

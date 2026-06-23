@@ -1,7 +1,8 @@
 package com.example.dgkl.module.agent.controller;
 
 import com.example.dgkl.common.Result;
-import com.example.dgkl.module.appointment.controller.MyAppointmentController;
+import com.example.dgkl.module.agent.dto.AgentAppointmentRequest;
+import com.example.dgkl.module.agent.service.AgentAppointmentService;
 import com.example.dgkl.module.appointment.entity.Appointment;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,15 +14,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/agent/appointments")
 @RequiredArgsConstructor
 public class AgentAppointmentController {
-    private final MyAppointmentController myAppointmentController;
+    private final AgentAppointmentService agentAppointmentService;
 
     @PostMapping
-    public Result<Appointment> create(@RequestBody Appointment appointment) {
-        return myAppointmentController.create(appointment);
+    public Result<Appointment> create(@RequestBody AgentAppointmentRequest request) {
+        return Result.success(agentAppointmentService.create(request));
     }
 
     @PostMapping("/cancel")
-    public Result<Appointment> cancel(@RequestBody Appointment appointment) {
-        return myAppointmentController.cancel(appointment.getId());
+    public Result<Appointment> cancel(@RequestBody AgentAppointmentRequest request) {
+        return Result.success(agentAppointmentService.cancel(request));
     }
 }

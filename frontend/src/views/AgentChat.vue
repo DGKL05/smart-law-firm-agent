@@ -54,7 +54,7 @@
           resize="none"
           maxlength="500"
           show-word-limit
-          placeholder="输入你的法律问题，或直接说：帮我预约 2026-06-29 15:00 在北京明德律师事务所找张明律师咨询"
+          placeholder="输入你的法律问题，或直接说：帮我预约 2026-06-23 14:00 黑龙江冰城律师事务所赵思远律师"
           :disabled="loading"
         />
         <el-button type="primary" native-type="submit" :loading="loading" :icon="Promotion">
@@ -71,7 +71,7 @@ import { ElMessage } from 'element-plus'
 import { Promotion, RefreshLeft } from '@element-plus/icons-vue'
 import http from '../api/http'
 
-const conversationId = ref(localStorage.getItem('difyConversationId') || '')
+const conversationId = ref('')
 const query = ref('')
 const loading = ref(false)
 const messagePanel = ref(null)
@@ -85,8 +85,8 @@ const messages = ref([
 
 const examples = [
   '查询《民法典》第五百七十七条原文',
-  '帮我预约 2026-06-29 15:00 在北京明德律师事务所找张明律师咨询',
-  '取消 2026-06-29 15:00 北京明德律师事务所张明律师的法律咨询预约'
+  '帮我预约 2026-06-23 14:00 黑龙江冰城律师事务所赵思远律师',
+  '取消 2026-06-23 14:00 黑龙江冰城律师事务所赵思远律师的预约'
 ]
 
 function useExample(example) {
@@ -95,7 +95,6 @@ function useExample(example) {
 
 function resetConversation() {
   conversationId.value = ''
-  localStorage.removeItem('difyConversationId')
   messages.value = [
     {
       id: Date.now(),
@@ -116,13 +115,12 @@ async function sendMessage() {
   await scrollToBottom()
 
   try {
-    const response = await http.post('/api/me/agent/chat', {
+    const response = await http.post('/api/ai/chat', {
       query: content,
       conversationId: conversationId.value
     })
     if (response.conversationId) {
       conversationId.value = response.conversationId
-      localStorage.setItem('difyConversationId', response.conversationId)
     }
     messages.value.push({
       id: Date.now() + 1,

@@ -10,4 +10,5 @@ import org.springframework.stereotype.Component;
 public class DifyProperties {
     private String baseUrl = "https://api.dify.ai/v1";
     private String apiKey;
+    private String responseMode = "blocking";
 }

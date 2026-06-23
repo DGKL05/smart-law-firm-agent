@@ -19,3 +19,7 @@ mybatis-plus:
 jwt:
   secret: smart-law-firm-local-dev-secret-key-change-before-prod-2026
   expiration: 86400000
+
+dify:
+  base-url: https://api.dify.ai/v1
+  api-key: ${DIFY_API_KEY:}

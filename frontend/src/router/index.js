@@ -12,6 +12,7 @@ import LawyerList from '../views/LawyerList.vue'
 import LawyerDetail from '../views/LawyerDetail.vue'
 import GenericCrudView from '../views/GenericCrudView.vue'
 import AdminStats from '../views/AdminStats.vue'
+import AgentChat from '../views/AgentChat.vue'
 import { userConfigs, adminConfigs } from '../views/crudConfigs'
 
 const userRoutes = Object.entries(userConfigs).map(([path, config]) => ({
@@ -46,7 +47,10 @@ const router = createRouter({
       path: '/user',
       component: UserLayout,
       meta: { requiresAuth: true },
-      children: userRoutes
+      children: [
+        { path: 'agent', component: AgentChat, meta: { requiresAuth: true } },
+        ...userRoutes
+      ]
     },
     {
       path: '/admin',

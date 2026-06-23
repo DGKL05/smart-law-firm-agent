@@ -1,6 +1,6 @@
 # 智能律所平台
 
-智能律所平台是《软件框架技术》课程大作业基础版本，当前实现 Spring Boot + Vue3 的业务系统、后台管理、数据库脚本、Redis 缓存入口和 MongoDB 操作日志预留。当前阶段不接入 Dify、北大法宝 MCP 或真实 AI 对话。
+智能律所平台是《软件框架技术》课程大作业基础版本，当前实现 Spring Boot + Vue3 的业务系统、后台管理、数据库脚本、Redis 缓存入口、MongoDB 操作日志预留，并接入云端 Dify Agent 作为智能法律助理。
 
 ## 技术栈
 
@@ -13,6 +13,7 @@
 - 认证权限：注册、登录、JWT 鉴权、管理员与普通用户角色控制。
 - 公共展示：律所列表/详情、律师列表/详情、省份与分类筛选、首页统计。
 - 用户中心：我的咨询、案件、预约、通知。
+- 智能助理：登录用户可在用户中心通过 Dify Agent 对话咨询法律问题，并通过对话新增或取消预约。
 - 管理后台：用户、律所、律师、咨询、案件、预约、通知、统计、日志。
 - 缓存与日志：律所省份缓存、律师分类缓存、首页统计缓存；MongoDB 操作日志记录失败不阻断主流程。
 
@@ -68,6 +69,15 @@ mvnw.cmd spring-boot:run
 
 默认后端地址：`http://localhost:8080`。
 
+如需启用云端 Dify Agent，请先配置环境变量：
+
+```bat
+set DIFY_API_KEY=你的Dify应用ServiceAPIKey
+mvnw.cmd spring-boot:run
+```
+
+后端会读取 `dify.api-key=${DIFY_API_KEY}`，并通过 `POST https://api.dify.ai/v1/chat-messages` 调用云端 Dify。API Key 不应写入前端代码。
+
 ## 前端启动
 
 ```bat
@@ -98,7 +108,17 @@ docker compose up -d
 - MyBatis-Plus 提供分页与逻辑删除基础能力。
 - Redis 缓存围绕公开热点数据设计，Redis 不可用时回退 MySQL。
 - MongoDB 操作日志使用拦截器记录，MongoDB 不可用时不影响 CRUD。
+- Dify Service API 由 Spring Boot 后端代理调用，前端不暴露 Dify API Key；Dify 工作流可回调 `/api/agent/appointments` 和 `/api/agent/appointments/cancel` 完成预约。
 
-## 后续 Dify/MCP Agent 计划
+## Dify Agent 接入
 
-当前只预留 `/api/agent/appointments` 和 `/api/agent/appointments/cancel` 普通 REST 接口。后续可在不破坏现有业务模块的前提下，将 Dify 工作流或 MCP 工具接入预约、咨询和法律知识检索入口。
+本项目采用“前端 -> Spring Boot -> Dify 云端 -> Spring Boot 预约接口”的方式接入：
+
+1. 前端页面：`/user/agent` 智能法律助理。
+2. 本项目代理接口：`POST /api/me/agent/chat`。
+3. Dify 云端接口：`POST /chat-messages`，由后端携带 `Authorization: Bearer ${DIFY_API_KEY}` 调用。
+4. Dify 工作流回调本项目：
+   - `POST /api/agent/appointments`
+   - `POST /api/agent/appointments/cancel`
+
+Dify DSL 中的 `SPRINGBOOT_BASE_URL` 本地 Docker 场景通常配置为 `http://host.docker.internal:8080`；`SPRINGBOOT_API_TOKEN` 填普通用户登录后的 JWT，且只填 token 本身。

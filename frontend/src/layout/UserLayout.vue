@@ -19,9 +19,6 @@
           <el-menu-item index="/user/consultations"><el-icon><ChatLineRound /></el-icon>我的咨询</el-menu-item>
           <el-menu-item index="/user/cases"><el-icon><Document /></el-icon>我的案件</el-menu-item>
           <el-menu-item index="/user/appointments"><el-icon><Calendar /></el-icon>我的预约</el-menu-item>
-          <el-menu-item index="/user/contracts"><el-icon><Tickets /></el-icon>我的合同</el-menu-item>
-          <el-menu-item index="/user/documents"><el-icon><Files /></el-icon>我的文书</el-menu-item>
-          <el-menu-item index="/user/invoices"><el-icon><Money /></el-icon>我的发票</el-menu-item>
           <el-menu-item index="/user/notifications"><el-icon><Bell /></el-icon>消息通知</el-menu-item>
         </el-menu>
       </aside>

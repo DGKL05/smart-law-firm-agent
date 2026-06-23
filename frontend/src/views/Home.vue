@@ -3,7 +3,7 @@
     <div class="hero-inner">
       <div>
         <h1>智能律所平台</h1>
-        <p>把律所、律师、咨询、案件、预约和合同文书整理成一套清晰的在线业务台账，适合课堂演示，也便于后续接入 Dify 与 MCP Agent。</p>
+        <p>把律所、律师、咨询、案件、预约和通知整理成一套清晰的在线业务台账，适合课堂演示，也便于后续接入 Dify 与 MCP Agent。</p>
         <el-space wrap>
           <el-button type="primary" size="large" @click="$router.push('/law-firms')">
             <el-icon><OfficeBuilding /></el-icon>
@@ -50,7 +50,7 @@
       <article>
         <el-icon><FolderChecked /></el-icon>
         <h3>我的业务</h3>
-        <p>咨询、案件、预约、合同、文书、发票和通知全部按当前登录用户隔离。</p>
+        <p>咨询、案件、预约和通知全部按当前登录用户隔离。</p>
       </article>
       <article>
         <el-icon><DataAnalysis /></el-icon>

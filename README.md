@@ -12,8 +12,8 @@
 
 - 认证权限：注册、登录、JWT 鉴权、管理员与普通用户角色控制。
 - 公共展示：律所列表/详情、律师列表/详情、省份与分类筛选、首页统计。
-- 用户中心：我的咨询、案件、预约、合同、文书、发票、通知。
-- 管理后台：用户、律所、律师、咨询、案件、预约、合同、文书、发票、通知、统计、日志。
+- 用户中心：我的咨询、案件、预约、通知。
+- 管理后台：用户、律所、律师、咨询、案件、预约、通知、统计、日志。
 - 缓存与日志：律所省份缓存、律师分类缓存、首页统计缓存；MongoDB 操作日志记录失败不阻断主流程。
 
 ## 项目结构
@@ -31,9 +31,6 @@ src/main/java/com/example/dgkl
     ├── consultation
     ├── legalcase
     ├── appointment
-    ├── contract
-    ├── document
-    ├── invoice
     ├── notification
     ├── log
     └── agent
@@ -89,7 +86,7 @@ docker compose up -d
 
 容器会暴露：
 
-- MySQL：`localhost:3306`，root/root
+- MySQL：`localhost:3307`，root/root
 - Redis：`localhost:6379`
 - MongoDB：`localhost:27017`
 

@@ -23,9 +23,6 @@
           <el-menu-item index="/admin/consultations"><el-icon><ChatLineRound /></el-icon>咨询管理</el-menu-item>
           <el-menu-item index="/admin/cases"><el-icon><Document /></el-icon>案件管理</el-menu-item>
           <el-menu-item index="/admin/appointments"><el-icon><Calendar /></el-icon>预约管理</el-menu-item>
-          <el-menu-item index="/admin/contracts"><el-icon><Tickets /></el-icon>合同管理</el-menu-item>
-          <el-menu-item index="/admin/documents"><el-icon><Files /></el-icon>文书管理</el-menu-item>
-          <el-menu-item index="/admin/invoices"><el-icon><Money /></el-icon>发票管理</el-menu-item>
           <el-menu-item index="/admin/notifications"><el-icon><Bell /></el-icon>通知管理</el-menu-item>
         </el-menu>
       </aside>

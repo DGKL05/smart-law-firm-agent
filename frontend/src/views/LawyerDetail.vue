@@ -72,7 +72,7 @@
         <div class="desk-toolbar">
           <div>
             <div class="desk-title">可预约法律咨询时间</div>
-            <div class="muted">默认展示接下来 5 个工作日；灰色时段已被预约或律师有案件安排</div>
+            <div class="muted">默认展示接下来 5 个工作日；灰色时段已过期、已被预约或律师有案件安排</div>
           </div>
           <span class="record-count">{{ availableSlots.length }} / {{ scheduleSlots.length }} 可约</span>
         </div>
@@ -156,7 +156,7 @@ const cancellingId = ref(null)
 const scheduleSlots = computed(() => item.value.scheduleSlots || [])
 const availableSlots = computed(() => scheduleSlots.value.filter((slot) => slot.available))
 const activeAppointments = computed(() => appointments.value.filter((appointment) => {
-  return appointment.lawyerId === Number(route.params.id) && appointment.status !== '已取消'
+  return appointment.lawyerId === Number(route.params.id) && appointment.status === '已预约'
 }))
 const goodAtTags = computed(() => splitText(item.value.goodAt, /[、,，]/))
 

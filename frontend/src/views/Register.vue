@@ -6,7 +6,7 @@
         <span>Smart Law Firm</span>
       </div>
       <h1>建立个人法律服务档案</h1>
-      <p>注册后可管理自己的咨询、案件、预约、合同、文书、发票和消息通知，后台接口会按登录用户自动过滤数据。</p>
+      <p>注册后可管理自己的咨询、案件、预约和消息通知，后台接口会按登录用户自动过滤数据。</p>
     </section>
     <el-card class="auth-card" shadow="never">
       <template #header>

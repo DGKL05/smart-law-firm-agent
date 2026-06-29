@@ -5,3 +5,9 @@
 ```text
 20260622_add_appointment_status.sql
 ```
+
+已记录脚本：
+
+```text
+004_ai_chat_history.sql
+```

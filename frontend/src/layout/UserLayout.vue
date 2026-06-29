@@ -16,7 +16,6 @@
           <div class="sidebar-kicker">个人案卷与服务记录</div>
         </div>
         <el-menu router background-color="transparent" text-color="#e9e1d0" active-text-color="#ffe1a8">
-          <el-menu-item index="/user/agent"><el-icon><Service /></el-icon>智能法律助理</el-menu-item>
           <el-menu-item index="/user/consultations"><el-icon><ChatLineRound /></el-icon>我的咨询</el-menu-item>
           <el-menu-item index="/user/cases"><el-icon><Document /></el-icon>我的案件</el-menu-item>
           <el-menu-item index="/user/appointments"><el-icon><Calendar /></el-icon>我的预约</el-menu-item>

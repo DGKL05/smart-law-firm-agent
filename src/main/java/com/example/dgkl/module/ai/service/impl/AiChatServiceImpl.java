@@ -9,6 +9,8 @@ import com.example.dgkl.module.ai.dto.AiChatResponse;
 import com.example.dgkl.module.ai.dto.DifyChatMessageRequest;
 import com.example.dgkl.module.ai.dto.DifyChatMessageResponse;
 import com.example.dgkl.module.ai.dto.DifyIntentResponse;
+import com.example.dgkl.module.ai.entity.AiChatSession;
+import com.example.dgkl.module.ai.service.AiChatHistoryService;
 import com.example.dgkl.module.ai.service.AiChatService;
 import com.example.dgkl.security.SecurityUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -43,19 +45,27 @@ public class AiChatServiceImpl implements AiChatService {
     private final DifyProperties difyProperties;
     private final ObjectMapper objectMapper;
     private final AgentAppointmentService agentAppointmentService;
+    private final AiChatHistoryService aiChatHistoryService;
     private final Clock aiClock;
 
     @Override
     public AiChatResponse chat(AiChatRequest request) {
         validateRequest(request);
         Long userId = requireUserId();
+        AiChatSession session = aiChatHistoryService.resolveSession(userId, request);
+        aiChatHistoryService.saveUserMessage(userId, session, request.getQuery().trim());
         DifyChatMessageResponse difyResponse = callDify(request, userId);
         String rawAnswer = trimToEmpty(difyResponse.getAnswer());
         DifyIntentResponse intent = parseIntent(rawAnswer);
+        AiChatResponse response;
         if (intent == null) {
-            return response(rawAnswer, difyResponse, "NORMAL_CHAT");
+            response = response(rawAnswer, difyResponse, "NORMAL_CHAT");
+        } else {
+            response = handleIntent(intent, rawAnswer, difyResponse);
         }
-        return handleIntent(intent, rawAnswer, difyResponse);
+        response.setSessionId(session.getId());
+        aiChatHistoryService.saveAssistantMessage(userId, session, response);
+        return response;
     }
 
     private DifyChatMessageResponse callDify(AiChatRequest request, Long userId) {

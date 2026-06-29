@@ -1,14 +1,14 @@
 <template>
   <section class="page detail-page">
-    <el-card class="detail-sheet profile-sheet" shadow="never">
-      <div class="profile-hero lawyer-hero">
+    <el-card class="detail-sheet profile-sheet editorial-sheet" shadow="never">
+      <div class="profile-hero lawyer-hero lawyer-profile-hero">
         <div class="lawyer-identity">
           <div class="large-avatar">{{ item.name?.slice(0, 1) }}</div>
           <div>
             <div class="profile-kicker">{{ item.lawFirmName }}</div>
             <h1 class="page-title">{{ item.name }}</h1>
             <p class="profile-summary">
-              {{ item.category }} · {{ item.title }} · {{ item.experienceYears }} 年经验
+              {{ item.category || '综合法律' }} · {{ item.title }} · {{ item.experienceYears || 0 }} 年经验
             </p>
             <div class="tag-row">
               <el-tag v-for="tag in goodAtTags" :key="tag" effect="plain" size="large">
@@ -17,7 +17,7 @@
             </div>
           </div>
         </div>
-        <div class="profile-stats">
+        <div class="profile-stats elevated-stats">
           <div class="profile-stat">
             <strong>{{ availableSlots.length }}</strong>
             <span>可约时段</span>
@@ -33,11 +33,11 @@
         </div>
       </div>
 
-      <div class="detail-grid">
-        <section class="info-panel wide">
+      <div class="detail-grid editorial-detail-grid">
+        <section class="info-panel wide lawyer-intro-panel">
           <div class="panel-title">律师介绍</div>
-          <p class="panel-copy">{{ item.description }}</p>
-          <div class="process-list">
+          <p class="panel-copy">{{ item.description || '该律师暂未填写详细介绍。' }}</p>
+          <div class="process-list refined-process">
             <span>案情评估</span>
             <span>证据梳理</span>
             <span>法律咨询</span>
@@ -47,22 +47,22 @@
 
         <section class="info-panel">
           <div class="panel-title">所属律所</div>
-          <p class="panel-copy">{{ item.lawFirmName }}</p>
+          <p class="panel-copy">{{ item.lawFirmName || '待补充' }}</p>
           <el-button type="primary" plain @click="$router.push(`/law-firms/${item.lawFirmId}`)">
             查看律所档案
           </el-button>
         </section>
 
-        <section class="info-panel">
+        <section class="info-panel contact-panel">
           <div class="panel-title">联系信息</div>
           <dl class="info-list compact-info">
             <div>
               <dt>电话</dt>
-              <dd>{{ item.phone }}</dd>
+              <dd>{{ item.phone || '待补充' }}</dd>
             </div>
             <div>
               <dt>邮箱</dt>
-              <dd>{{ item.email }}</dd>
+              <dd>{{ item.email || '待补充' }}</dd>
             </div>
           </dl>
         </section>
@@ -76,16 +76,16 @@
           </div>
           <span class="record-count">{{ availableSlots.length }} / {{ scheduleSlots.length }} 可约</span>
         </div>
-        <div class="appointment-grid">
+        <div class="appointment-grid polished-appointment-grid">
           <article
             v-for="slot in scheduleSlots"
             :key="slot.startTime"
-            class="appointment-card"
+            class="appointment-card polished-appointment-card"
             :class="{ unavailable: !slot.available }"
           >
             <span class="appointment-mark">{{ slot.available ? '可约' : slot.unavailableReason }}</span>
             <strong>{{ formatSlot(slot) }}</strong>
-            <small>{{ slot.available ? '适合初次咨询、材料审查和方案沟通' : '该时间段暂不可再预约' }}</small>
+            <small>{{ slot.available ? '适合初次咨询、材料审查和方案沟通' : '该时间段暂不可预约' }}</small>
             <el-button
               v-if="slot.available"
               type="primary"
@@ -107,8 +107,8 @@
           </div>
           <span class="record-count">{{ activeAppointments.length }} 条</span>
         </div>
-        <div v-if="activeAppointments.length" class="appointment-grid">
-          <article v-for="appointment in activeAppointments" :key="appointment.id" class="appointment-card mine">
+        <div v-if="activeAppointments.length" class="appointment-grid polished-appointment-grid">
+          <article v-for="appointment in activeAppointments" :key="appointment.id" class="appointment-card mine polished-appointment-card">
             <span class="appointment-mark">已预约</span>
             <strong>{{ formatDateTime(appointment.appointmentTime) }}</strong>
             <small>{{ appointment.remark || '法律咨询预约' }}</small>
@@ -128,8 +128,8 @@
 
       <div class="detail-section">
         <div class="desk-title">擅长方向</div>
-        <div class="expertise-grid">
-          <article v-for="tag in goodAtTags" :key="tag" class="expertise-card">
+        <div class="expertise-grid polished-expertise-grid">
+          <article v-for="tag in goodAtTags" :key="tag" class="expertise-card polished-expertise-card">
             <strong>{{ tag }}</strong>
             <span>可提供规则解释、风险判断、证据准备和行动建议。</span>
           </article>
@@ -156,12 +156,13 @@ const cancellingId = ref(null)
 const scheduleSlots = computed(() => item.value.scheduleSlots || [])
 const availableSlots = computed(() => scheduleSlots.value.filter((slot) => slot.available))
 const activeAppointments = computed(() => appointments.value.filter((appointment) => {
-  return appointment.lawyerId === Number(route.params.id) && appointment.status === '已预约'
+  const inactiveStatuses = ['已取消', '已完成']
+  return appointment.lawyerId === Number(route.params.id) && !inactiveStatuses.includes(appointment.status)
 }))
-const goodAtTags = computed(() => splitText(item.value.goodAt, /[、,，]/))
+const goodAtTags = computed(() => splitText(item.value.goodAt))
 
-function splitText(value, separator) {
-  return (value || '').split(separator).map((item) => item.trim()).filter(Boolean)
+function splitText(value) {
+  return (value || '').split(/[、,，\s]+/).map((item) => item.trim()).filter(Boolean)
 }
 
 function formatSlot(slot) {

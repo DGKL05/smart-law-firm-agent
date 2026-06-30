@@ -1,8 +1,12 @@
 package com.example.dgkl.module.user.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.dgkl.common.BusinessException;
+import com.example.dgkl.common.PageResult;
+import com.example.dgkl.module.common.EntityLifecycle;
 import com.example.dgkl.module.user.entity.SysRole;
 import com.example.dgkl.module.user.entity.SysUser;
 import com.example.dgkl.module.user.entity.SysUserRole;
@@ -11,6 +15,7 @@ import com.example.dgkl.module.user.mapper.SysUserMapper;
 import com.example.dgkl.module.user.mapper.SysUserRoleMapper;
 import com.example.dgkl.module.user.service.SysUserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -22,6 +27,7 @@ import java.util.List;
 public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements SysUserService {
     private final SysRoleMapper roleMapper;
     private final SysUserRoleMapper userRoleMapper;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public SysUser findByUsername(String username) {
@@ -48,6 +54,39 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         userRole.setUserId(userId);
         userRole.setRoleId(role.getId());
         userRoleMapper.insert(userRole);
+    }
+
+    @Override
+    public PageResult<SysUser> adminPage(long pageNum, long pageSize, String keyword) {
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<SysUser>().orderByDesc("create_time");
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.and(item -> item.like("username", keyword).or().like("nickname", keyword));
+        }
+        return PageResult.of(page(new Page<>(pageNum, pageSize), wrapper));
+    }
+
+    @Override
+    public SysUser adminCreate(SysUser user) {
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        save(user);
+        bindRole(user.getId(), "USER");
+        return user;
+    }
+
+    @Override
+    public SysUser adminUpdate(Long id, SysUser user) {
+        user.setId(id);
+        if (user.getPassword() != null && !user.getPassword().startsWith("$2")) {
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
+        EntityLifecycle.forUpdate(user);
+        updateById(user);
+        return getById(id);
+    }
+
+    @Override
+    public void adminDelete(Long id) {
+        removeById(id);
     }
 
     @Override

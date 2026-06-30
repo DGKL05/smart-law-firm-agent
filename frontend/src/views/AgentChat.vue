@@ -69,7 +69,7 @@
 import { nextTick, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Promotion, RefreshLeft } from '@element-plus/icons-vue'
-import http from '../api/http'
+import { postAiChat } from '../api/http'
 
 const conversationId = ref('')
 const query = ref('')
@@ -115,7 +115,7 @@ async function sendMessage() {
   await scrollToBottom()
 
   try {
-    const response = await http.post('/api/ai/chat', {
+    const response = await postAiChat({
       query: content,
       conversationId: conversationId.value
     })

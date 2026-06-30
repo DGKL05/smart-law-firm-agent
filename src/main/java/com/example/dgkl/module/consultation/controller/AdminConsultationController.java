@@ -3,7 +3,6 @@ package com.example.dgkl.module.consultation.controller;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.example.dgkl.common.Result;
 import com.example.dgkl.module.common.AbstractAdminCrudController;
-import com.example.dgkl.module.common.EntityLifecycle;
 import com.example.dgkl.module.consultation.entity.Consultation;
 import com.example.dgkl.module.consultation.service.ConsultationService;
 import lombok.Data;
@@ -27,21 +26,12 @@ public class AdminConsultationController extends AbstractAdminCrudController<Con
 
     @PutMapping("/{id}/reply")
     public Result<Consultation> reply(@PathVariable Long id, @RequestBody ReplyRequest request) {
-        Consultation consultation = consultationService.getById(id);
-        consultation.setReply(request.getReply());
-        consultation.setStatus("已回复");
-        EntityLifecycle.forUpdate(consultation);
-        consultationService.updateById(consultation);
-        return Result.success(consultationService.getById(id));
+        return Result.success(consultationService.reply(id, request.getReply()));
     }
 
     @PutMapping("/{id}/close")
     public Result<Consultation> close(@PathVariable Long id) {
-        Consultation consultation = consultationService.getById(id);
-        consultation.setStatus("已关闭");
-        EntityLifecycle.forUpdate(consultation);
-        consultationService.updateById(consultation);
-        return Result.success(consultationService.getById(id));
+        return Result.success(consultationService.close(id));
     }
 
     @Data

@@ -32,6 +32,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +41,7 @@ public class AiChatServiceImpl implements AiChatService {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final DateTimeFormatter APPOINTMENT_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final Pattern THINK_BLOCK = Pattern.compile("(?is)<think>.*?</think>");
 
     private final RestTemplate difyRestTemplate;
     private final DifyProperties difyProperties;
@@ -175,12 +177,18 @@ public class AiChatServiceImpl implements AiChatService {
 
     private String cleanJsonAnswer(String answer) {
         String value = trimToEmpty(answer);
+        value = THINK_BLOCK.matcher(value).replaceAll("").trim();
         if (value.startsWith("```")) {
             value = value.replaceFirst("^```(?:json)?\\s*", "");
             value = value.replaceFirst("\\s*```$", "");
         }
         if (value.startsWith("json")) {
             value = value.substring(4).trim();
+        }
+        int start = value.indexOf('{');
+        int end = value.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            value = value.substring(start, end + 1);
         }
         return value.trim();
     }

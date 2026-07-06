@@ -1,0 +1,25 @@
+USE smart_law_ai;
+
+CREATE TABLE IF NOT EXISTS ai_chat_session (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  title VARCHAR(128) NOT NULL,
+  conversation_id VARCHAR(128),
+  last_message VARCHAR(500),
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted TINYINT DEFAULT 0,
+  KEY idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS ai_chat_message (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  session_id BIGINT NOT NULL,
+  user_id BIGINT NOT NULL,
+  role VARCHAR(32) NOT NULL,
+  content LONGTEXT NOT NULL,
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  deleted TINYINT DEFAULT 0,
+  KEY idx_session_id (session_id),
+  KEY idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

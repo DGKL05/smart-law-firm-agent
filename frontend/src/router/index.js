@@ -3,6 +3,7 @@ import { useAuthStore } from '../stores/auth'
 import PublicLayout from '../layout/PublicLayout.vue'
 import UserLayout from '../layout/UserLayout.vue'
 import AdminLayout from '../layout/AdminLayout.vue'
+import LawyerLayout from '../layout/LawyerLayout.vue'
 import Home from '../views/Home.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
@@ -10,6 +11,11 @@ import LawFirmList from '../views/LawFirmList.vue'
 import LawFirmDetail from '../views/LawFirmDetail.vue'
 import LawyerList from '../views/LawyerList.vue'
 import LawyerDetail from '../views/LawyerDetail.vue'
+import LawyerDashboard from '../views/lawyer/LawyerDashboard.vue'
+import LawyerProfile from '../views/lawyer/LawyerProfile.vue'
+import LawyerSchedule from '../views/lawyer/LawyerSchedule.vue'
+import LawyerAppointments from '../views/lawyer/LawyerAppointments.vue'
+import LawyerConsultations from '../views/lawyer/LawyerConsultations.vue'
 import GenericCrudView from '../views/GenericCrudView.vue'
 import AdminStats from '../views/AdminStats.vue'
 import { userConfigs, adminConfigs } from '../views/crudConfigs'
@@ -49,6 +55,19 @@ const router = createRouter({
       children: userRoutes
     },
     {
+      path: '/lawyer-center',
+      component: LawyerLayout,
+      meta: { requiresAuth: true, requiresLawyer: true },
+      children: [
+        { path: '', redirect: '/lawyer-center/dashboard' },
+        { path: 'dashboard', component: LawyerDashboard },
+        { path: 'profile', component: LawyerProfile },
+        { path: 'schedule', component: LawyerSchedule },
+        { path: 'appointments', component: LawyerAppointments },
+        { path: 'consultations', component: LawyerConsultations }
+      ]
+    },
+    {
       path: '/admin',
       component: AdminLayout,
       meta: { requiresAuth: true, requiresAdmin: true },
@@ -66,6 +85,9 @@ router.beforeEach((to) => {
     return '/login'
   }
   if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return '/'
+  }
+  if (to.meta.requiresLawyer && !auth.isLawyer) {
     return '/'
   }
   return true

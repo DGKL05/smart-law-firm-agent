@@ -1,5 +1,9 @@
 HELP.md
 target/
+build-microservices.log
+.superpowers/
+frontend/node_modules/
+frontend/dist/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

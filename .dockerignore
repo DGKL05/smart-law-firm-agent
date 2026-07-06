@@ -1,0 +1,7 @@
+.git
+.idea
+.superpowers
+frontend/node_modules
+frontend/dist
+build-microservices.log
+docker-build-*.log

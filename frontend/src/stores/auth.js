@@ -8,7 +8,8 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     isLogin: (state) => Boolean(state.token),
-    isAdmin: (state) => state.user?.roles?.includes('ADMIN')
+    isAdmin: (state) => state.user?.roles?.includes('ADMIN'),
+    isLawyer: (state) => state.user?.roles?.includes('LAWYER')
   },
   actions: {
     async login(form) {

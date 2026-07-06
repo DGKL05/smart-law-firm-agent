@@ -1,124 +1,98 @@
 # 智能律所平台
 
-智能律所平台是《软件框架技术》课程大作业基础版本，当前实现 Spring Boot + Vue3 的业务系统、后台管理、数据库脚本、Redis 缓存入口、MongoDB 操作日志预留，并接入云端 Dify Agent 作为智能法律助理。
+智能律所平台已经升级为微服务项目，包含公众端、用户端、律师端、管理端和全局智能法律助理。后端不再保留单体 Spring Boot 入口，所有业务能力由独立微服务通过网关提供。
 
 ## 技术栈
 
-- 后端：Java 17、Spring Boot、Spring Security、JWT、MyBatis-Plus、MySQL、Redis、MongoDB、Maven、Lombok。
-- 前端：Vue3、Vite、Element Plus、Vue Router、Pinia、Axios。
-- 基础设施：Docker Compose 提供 MySQL、Redis、MongoDB。
+- 后端：Java 17、Spring Boot 3、Spring Cloud Gateway、OpenFeign、Nacos、Spring Security、JWT、MyBatis-Plus
+- 数据：MySQL 8、Redis 7、MongoDB 7
+- 前端：Vue 3、Vite、Element Plus、Pinia、Vue Router、Axios
+- 部署：Docker Compose
 
-## 功能模块
-
-- 认证权限：注册、登录、JWT 鉴权、管理员与普通用户角色控制。
-- 公共展示：律所列表/详情、律师列表/详情、省份与分类筛选、首页统计。
-- 用户中心：我的咨询、案件、预约、通知。
-- 智能助理：登录用户可在用户中心通过 Dify Agent 对话咨询法律问题，并通过对话新增或取消预约。
-- 管理后台：用户、律所、律师、咨询、案件、预约、通知、统计、日志。
-- 缓存与日志：律所省份缓存、律师分类缓存、首页统计缓存；MongoDB 操作日志记录失败不阻断主流程。
-
-## 项目结构
+## 微服务模块
 
 ```text
-src/main/java/com/example/dgkl
-├── common
-├── config
-├── security
-└── module
-    ├── auth
-    ├── user
-    ├── lawfirm
-    ├── lawyer
-    ├── consultation
-    ├── legalcase
-    ├── appointment
-    ├── notification
-    ├── log
-    └── agent
-frontend
-sql
-docs
+smart-law-common        共享响应、异常、JWT、安全、MyBatis 配置
+gateway-service         API 网关，统一暴露 /api/**
+auth-service            登录、注册、用户、角色、JWT
+lawyer-service          律所、律师、律师端资料、公开检索
+appointment-service     预约、取消预约、律师排班、案件占用
+ai-service              Dify 调用、法律咨询对话、聊天历史
+admin-service           管理后台聚合接口
+frontend                Vue 前端，包含公众端、用户端、律师端、管理端
+sql/microservices       微服务数据库脚本
 ```
 
-## 环境要求
+## 数据库划分
 
-- JDK 17+
-- Maven Wrapper：使用仓库内 `mvnw.cmd`
-- Node.js 18+
-- MySQL、Redis、MongoDB 均默认连接 `localhost`
+Docker 默认使用一个 MySQL 容器承载多个 schema：
 
-## 数据库脚本
+- `smart_law_auth`
+- `smart_law_lawyer`
+- `smart_law_appointment`
+- `smart_law_ai`
+- `smart_law_admin`
 
-脚本只记录在仓库中，不会自动执行。手动执行顺序：
+SQL 脚本全部记录在 `sql/microservices`，MySQL 容器首次初始化时会自动执行。
 
-1. `sql/001_create_database.sql`
-2. `sql/002_init_schema.sql`
-3. `sql/003_init_data.sql`
+## 启动方式
+
+推荐直接使用 Docker：
+
+```bat
+docker compose up -d --build
+```
+
+访问地址：
+
+- 前端：http://localhost:5173
+- API 网关：http://localhost:8080
+- Nacos：http://localhost:8848/nacos
+- MySQL：localhost:3307，root/root
+- Redis：localhost:6379
+- MongoDB：localhost:27017
 
 测试账号：
 
 - 管理员：`admin / 123456`
-- 普通用户：`user / 123456`
+- 用户：`user / 123456`
+- 律师：`lawyer / 123456`
 
-## 后端启动
-
-```bat
-mvnw.cmd clean test
-mvnw.cmd spring-boot:run
-```
-
-默认后端地址：`http://localhost:8080`。
-
-如需启用云端 Dify Agent，请先配置环境变量：
+如需启用云端 Dify，请在启动前设置：
 
 ```bat
 set DIFY_API_KEY=你的Dify应用ServiceAPIKey
-mvnw.cmd spring-boot:run
+docker compose up -d --build
 ```
 
-后端会读取 `dify.api-key=${DIFY_API_KEY}`，并通过 `POST https://api.dify.ai/v1/chat-messages` 调用云端 Dify。API Key 不应写入前端代码。
+## 本地构建
 
-## 前端启动
+后端：
+
+```bat
+mvnw.cmd test
+mvnw.cmd -DskipTests package
+```
+
+前端：
 
 ```bat
 cd frontend
 npm install
-npm run dev
+npm run build
 ```
 
-默认前端地址：`http://localhost:5173`。
-
-## Docker Compose
+Docker 配置检查：
 
 ```bat
-docker compose up -d
+docker compose config
 ```
 
-容器会暴露：
+## 关键能力
 
-- MySQL：`localhost:3307`，root/root
-- Redis：`localhost:6379`
-- MongoDB：`localhost:27017`
-
-## 课程设计亮点
-
-- 后端统一响应结构和全局异常处理。
-- 用户端“我的”模块按 JWT 当前用户过滤数据，避免越权读取。
-- 管理端 `/api/admin/**` 统一要求 ADMIN 角色。
-- MyBatis-Plus 提供分页与逻辑删除基础能力。
-- Redis 缓存围绕公开热点数据设计，Redis 不可用时回退 MySQL。
-- MongoDB 操作日志使用拦截器记录，MongoDB 不可用时不影响 CRUD。
-- Dify Service API 由 Spring Boot 后端代理调用，前端不暴露 Dify API Key；Dify 工作流可回调 `/api/agent/appointments` 和 `/api/agent/appointments/cancel` 完成预约。
-
-## Dify Agent 接入
-
-本项目采用“前端 -> Spring Boot -> Dify 云端 -> Spring Boot 预约接口”的方式接入：
-
-1. 前端页面：`/user/agent` 智能法律助理。
-2. 本项目代理接口：`POST /api/me/agent/chat`。
-3. Dify 云端接口：`POST /chat-messages`，由后端携带 `Authorization: Bearer ${DIFY_API_KEY}` 调用。
-4. Dify 工作流回调本项目：
-   - `POST /api/agent/appointments`
-   - `POST /api/agent/appointments/cancel`
-
-Dify DSL 中的 `SPRINGBOOT_BASE_URL` 本地 Docker 场景通常配置为 `http://host.docker.internal:8080`；`SPRINGBOOT_API_TOKEN` 填普通用户登录后的 JWT，且只填 token 本身。
+- 网关统一入口，前端只访问 `/api/**`。
+- 认证服务签发 JWT，各业务服务本地校验角色。
+- 律师端独立入口 `/lawyer-center`，支持工作台、资料、排班、预约、咨询页面。
+- 预约服务默认生成周一至周五可预约时段，已预约或案件占用时段返回不可预约。
+- AI 服务独立保存聊天会话与消息，按用户隔离历史记录。
+- 律所律师服务和预约服务通过 OpenFeign 协作，避免跨库直接访问。

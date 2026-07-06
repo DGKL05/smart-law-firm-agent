@@ -1,0 +1,12 @@
+package com.example.dgkl.ai.dto;
+
+import lombok.Data;
+
+@Data
+public class AiChatResponse {
+    private Long sessionId;
+    private String answer;
+    private String conversationId;
+    private String messageId;
+    private String intent;
+}

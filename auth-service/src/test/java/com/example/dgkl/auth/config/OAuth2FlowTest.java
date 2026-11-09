@@ -12,6 +12,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
@@ -47,6 +49,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -87,18 +91,36 @@ class OAuth2FlowTest {
     }
 
     @Test
-    void authorizesWithPkcePersistsTokenUsesCurrentRoleAndRevokesOnLogout() throws Exception {
+    void loginWithoutCsrfUsesStructuredForbidden() throws Exception {
+        MvcResult csrf = mvc.perform(get("/api/oauth2/csrf")).andExpect(status().isOk()).andReturn();
+        MockHttpSession session = (MockHttpSession) csrf.getRequest().getSession(false);
+        assertThat(session).isNotNull();
+
+        mvc.perform(post("/api/oauth2/login").session(session)
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("username", "alice").param("password", TEST_PASSWORD))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(403))
+                .andExpect(jsonPath("$.message").value("登录请求已过期，请刷新后重试"));
+
+        verify(users, never()).loadForAuthentication("alice");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {REDIRECT_URI, "http://localhost:5174/oauth/callback",
+            "http://127.0.0.1:5173/oauth/callback", "http://127.0.0.1:5174/oauth/callback"})
+    void authorizesWithPkcePersistsTokenUsesCurrentRoleAndRevokesOnLogout(String redirectUri) throws Exception {
         AtomicReference<SecurityUser> account = new AtomicReference<>(principal("ADMIN"));
         when(users.findActivePrincipal(17L)).thenAnswer(invocation -> Optional.ofNullable(account.get()));
         when(users.currentProfile())
                 .thenReturn(new UserView(17L, "alice", "Alice", null, null, List.of("ADMIN"), 1));
 
-        AuthorizedCode authorization = authorize();
+        AuthorizedCode authorization = authorize(redirectUri);
         MvcResult exchange = mvc.perform(post("/api/oauth2/token")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                         .param("grant_type", "authorization_code").param("client_id", "smart-law-spa")
                         .param("code", authorization.code()).param("code_verifier", VERIFIER)
-                        .param("redirect_uri", REDIRECT_URI))
+                        .param("redirect_uri", redirectUri))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token_type").value("Bearer"))
                 .andExpect(jsonPath("$.refresh_token").doesNotExist())
@@ -135,7 +157,7 @@ class OAuth2FlowTest {
 
     @Test
     void authorizationCodeCannotBeExchangedWithWrongVerifier() throws Exception {
-        AuthorizedCode authorization = authorize();
+        AuthorizedCode authorization = authorize(REDIRECT_URI);
 
         mvc.perform(post("/api/oauth2/token").contentType(MediaType.APPLICATION_FORM_URLENCODED)
                         .param("grant_type", "authorization_code").param("client_id", "smart-law-spa")
@@ -149,12 +171,12 @@ class OAuth2FlowTest {
                 .isZero();
     }
 
-    private AuthorizedCode authorize() throws Exception {
+    private AuthorizedCode authorize(String redirectUri) throws Exception {
         byte[] digest = MessageDigest.getInstance("SHA-256").digest(VERIFIER.getBytes(StandardCharsets.US_ASCII));
         String challenge = Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
         MvcResult loginRedirect = mvc.perform(get("/api/oauth2/authorize").accept(MediaType.TEXT_HTML)
                         .queryParam("response_type", "code").queryParam("client_id", "smart-law-spa")
-                        .queryParam("scope", "smart-law-api").queryParam("redirect_uri", REDIRECT_URI)
+                        .queryParam("scope", "smart-law-api").queryParam("redirect_uri", redirectUri)
                         .queryParam("state", "state-verification")
                         .queryParam("code_challenge", challenge).queryParam("code_challenge_method", "S256"))
                 .andExpect(status().isFound()).andExpect(header().string(HttpHeaders.LOCATION, "/login?oauth=1"))
@@ -175,7 +197,7 @@ class OAuth2FlowTest {
         MvcResult callback = mvc.perform(get(savedRequest).session(authenticated))
                 .andExpect(status().isFound()).andReturn();
         String location = callback.getResponse().getHeader(HttpHeaders.LOCATION);
-        assertThat(location).startsWith(REDIRECT_URI + "?");
+        assertThat(location).startsWith(redirectUri + "?");
         var query = UriComponentsBuilder.fromUriString(location).build().getQueryParams();
         assertThat(query.getFirst("state")).isEqualTo("state-verification");
         String code = query.getFirst("code");

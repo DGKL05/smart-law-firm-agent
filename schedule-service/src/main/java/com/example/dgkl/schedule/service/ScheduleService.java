@@ -5,6 +5,8 @@ import com.example.dgkl.schedule.dto.ScheduleBlockRequest;
 import com.example.dgkl.schedule.dto.ScheduleReservationRequest;
 import com.example.dgkl.schedule.dto.ScheduleRuleRequest;
 import com.example.dgkl.schedule.dto.ScheduleSlotResponse;
+import com.example.dgkl.schedule.dto.WeeklyScheduleRequest;
+import com.example.dgkl.schedule.dto.WeeklyScheduleResponse;
 import com.example.dgkl.schedule.entity.ScheduleBlock;
 import com.example.dgkl.schedule.entity.ScheduleRule;
 
@@ -20,6 +22,10 @@ public interface ScheduleService {
     ScheduleRule updateRule(Long id, ScheduleRuleRequest request, Long owner);
 
     void deleteRule(Long id, Long owner);
+
+    WeeklyScheduleResponse weeklyRules(Long lawyerId);
+
+    WeeklyScheduleResponse replaceWeeklyRules(Long lawyerId, WeeklyScheduleRequest request);
 
     PageResult<ScheduleBlock> blocks(Long owner, Long lawyerId, long pageNum, long pageSize);
 

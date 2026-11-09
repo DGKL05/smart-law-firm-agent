@@ -13,6 +13,10 @@
     <el-card class="work-card" shadow="never">
       <div class="desk-toolbar">
         <el-form inline class="search-desk" @submit.prevent="search">
+          <el-form-item v-if="config.lawyerFilter" label="律师" class="lawyer-filter">
+            <ReferenceSelect :model-value="lawyerFilterId" kind="lawyers" label="律师"
+              @update:model-value="filterLawyer" />
+          </el-form-item>
           <el-form-item v-if="config.search !== false" label="关键词">
             <el-input v-model.trim="keyword" placeholder="输入关键词" clearable maxlength="80" />
           </el-form-item>
@@ -25,7 +29,7 @@
       <el-alert v-if="loadError" :title="loadError" type="error" :closable="false" show-icon class="list-error" />
 
       <el-table v-loading="loading" :data="records" border stripe class="ledger-table" row-key="id">
-        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column prop="id" label="编号" width="80" />
         <el-table-column
           v-for="column in config.columns"
           :key="column.prop"
@@ -33,7 +37,7 @@
           :min-width="column.width || 125"
           show-overflow-tooltip
         >
-          <template #default="{ row }">{{ renderField(column, row[column.prop]) }}</template>
+          <template #default="{ row }">{{ renderField(column, row) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
@@ -75,7 +79,8 @@
       />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑记录' : '新增记录'" width="min(620px, 94vw)">
+    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑记录' : '新增记录'" width="min(620px, 94vw)"
+      destroy-on-close>
       <el-form ref="editor" :model="form" :rules="rules" label-width="104px" @submit.prevent="submit">
         <el-form-item v-for="field in fields" :key="field.prop" :label="field.label" :prop="field.prop">
           <el-date-picker v-if="field.type === 'datetime'" v-model="form[field.prop]" type="datetime"
@@ -84,8 +89,13 @@
             value-format="HH:mm:ss" format="HH:mm" style="width: 100%" />
           <el-input-number v-else-if="field.type === 'number'" v-model="form[field.prop]"
             :min="field.min ?? 1" :max="field.max" :precision="0" style="width: 100%" />
+          <ReferenceSelect v-else-if="field.type === 'reference'" v-model="form[field.prop]"
+            :key="field.prop + ':' + referenceKind(field, form)" :kind="referenceKind(field, form)"
+            :label="field.label" :required="field.required" />
           <el-select v-else-if="field.options" v-model="form[field.prop]"
-            :multiple="field.type === 'multi'" :clearable="!field.required" style="width: 100%">
+            :multiple="field.type === 'multi'" :clearable="!field.required" :filterable="field.allowCreate"
+            :allow-create="field.allowCreate" style="width: 100%"
+            @change="clearDependentReferences(field.prop)">
             <el-option v-for="option in field.options" :key="option.value" :label="option.label"
               :value="option.value" />
           </el-select>
@@ -102,9 +112,9 @@
 
     <el-dialog v-model="detailVisible" title="记录详情" width="min(620px, 94vw)">
       <el-descriptions v-if="detail" border :column="1">
-        <el-descriptions-item label="ID">{{ detail.id }}</el-descriptions-item>
+        <el-descriptions-item label="编号">{{ detail.id }}</el-descriptions-item>
         <el-descriptions-item v-for="column in config.columns" :key="column.prop" :label="column.label">
-          {{ renderField(column, detail[column.prop]) }}
+          {{ renderField(column, detail) }}
         </el-descriptions-item>
       </el-descriptions>
       <img v-if="config.asset && detail?.[config.asset.prop]" :src="detail[config.asset.prop]"
@@ -118,14 +128,17 @@ import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { Plus, Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import http from '../api/http'
+import { readReference, referenceSource } from '../api/crudReferences'
 import ImageUpload from './ImageUpload.vue'
+import ReferenceSelect from './ReferenceSelect.vue'
 
-const props = defineProps({ config: { type: Object, required: true } })
+const props = defineProps({ config: { type: Object, required: true }, initialLawyerId: Number })
 const records = ref([])
 const total = ref(0)
 const pageNum = ref(1)
 const pageSize = ref(10)
 const keyword = ref('')
+const lawyerFilterId = ref(null)
 const loading = ref(false)
 const loadError = ref('')
 const dialogVisible = ref(false)
@@ -137,20 +150,24 @@ const form = reactive({})
 const detail = ref(null)
 const detailVisible = ref(false)
 const busyAction = ref('')
+const referenceNames = reactive(new Map())
 let requestNumber = 0
 
 const fields = computed(() => (editingId.value ? props.config.updateFields : props.config.createFields) || [])
 const rules = computed(() => Object.fromEntries(fields.value.filter((field) => field.required).map((field) => [
-  field.prop, [{ required: true, message: '请填写' + field.label, trigger: ['blur', 'change'] }]
+  field.prop, [{ required: true, message: (field.type === 'reference' || field.options ? '请选择' : '请填写') + field.label,
+    trigger: ['blur', 'change'] }]
 ])))
 
-watch(() => props.config.endpoint, () => {
+watch([() => props.config.endpoint, () => props.config.lawyerFilter ? props.initialLawyerId : undefined], () => {
   records.value = []
   total.value = 0
   keyword.value = ''
+  lawyerFilterId.value = props.config.lawyerFilter ? props.initialLawyerId ?? null : null
   pageNum.value = 1
   dialogVisible.value = false
   detailVisible.value = false
+  referenceNames.clear()
   load()
 }, { immediate: true })
 
@@ -160,7 +177,8 @@ async function load() {
   loadError.value = ''
   try {
     const data = await http.get(props.config.endpoint, {
-      params: { pageNum: pageNum.value, pageSize: pageSize.value, keyword: keyword.value || undefined }
+      params: { pageNum: pageNum.value, pageSize: pageSize.value, keyword: keyword.value || undefined,
+        lawyerId: lawyerFilterId.value ?? undefined }
     })
     if (current !== requestNumber) return
     records.value = data.records || []
@@ -169,6 +187,8 @@ async function load() {
     if (!records.value.length && pageNum.value > lastPage) {
       pageNum.value = lastPage
       await load()
+    } else {
+      loadReferenceNames(records.value)
     }
   } catch (error) {
     if (current === requestNumber) {
@@ -186,8 +206,50 @@ function search() {
   return load()
 }
 
-function renderField(column, value) {
+function filterLawyer(id) {
+  lawyerFilterId.value = id
+  search()
+}
+
+function referenceKind(field, row) {
+  return field.referenceFrom ? row[field.referenceFrom] : field.reference
+}
+
+async function loadReferenceNames(rows) {
+  const columns = props.config.columns.filter((column) => column.type === 'reference')
+  const current = requestNumber
+  const lookups = new Map()
+  for (const row of rows) {
+    for (const column of columns) {
+      const kind = referenceKind(column, row)
+      const id = row[column.prop]
+      const key = `${kind}:${id}`
+      if (referenceSource(kind) && /^[1-9]\d*$/.test(id) && !row[column.nameProp] && !referenceNames.get(key)) {
+        lookups.set(key, { kind, id })
+      }
+    }
+  }
+  const jobs = [...lookups]
+  let index = 0
+  await Promise.all(Array.from({ length: Math.min(6, jobs.length) }, async () => {
+    while (current === requestNumber && index < jobs.length) {
+      const [key, { kind, id }] = jobs[index++]
+      const label = await readReference(kind, id).catch(() => null)
+      if (current === requestNumber) referenceNames.set(key, label)
+    }
+  }))
+}
+
+function renderField(column, row) {
+  const value = row[column.prop]
   if (value == null || value === '') return '—'
+  if (column.type === 'reference') {
+    const kind = referenceKind(column, row)
+    if (column.nameProp && row[column.nameProp]) return row[column.nameProp]
+    if (!referenceSource(kind) || !/^[1-9]\d*$/.test(value)) return `历史关联 #${value}`
+    const key = `${kind}:${value}`
+    return referenceNames.has(key) ? referenceNames.get(key) || `名称不可用 #${value}` : '查询名称中…'
+  }
   if (Array.isArray(value)) return value.map((item) => labelOf(column, item)).join('、')
   return column.type === 'datetime' ? String(value).replace('T', ' ').slice(0, 16) : labelOf(column, value)
 }
@@ -204,13 +266,20 @@ function actionsFor(row) {
   return (props.config.extraActions || []).filter((item) => permits(item.when, row))
 }
 
+function clearDependentReferences(prop) {
+  for (const field of fields.value) {
+    if (field.referenceFrom === prop) form[field.prop] = null
+  }
+}
+
 async function openForm(row) {
   editingId.value = row?.id ?? null
   formError.value = ''
   for (const key of Object.keys(form)) delete form[key]
   for (const field of fields.value) {
     const value = field.type === 'password' ? null : row?.[field.source || field.prop]
-    form[field.prop] = value ?? field.initial ?? (field.type === 'multi' ? [] : null)
+    const filteredLawyer = !row && field.prop === 'lawyerId' ? lawyerFilterId.value : null
+    form[field.prop] = value ?? filteredLawyer ?? field.initial ?? (field.type === 'multi' ? [] : null)
   }
   dialogVisible.value = true
   await nextTick()
@@ -223,6 +292,7 @@ async function submit() {
   formError.value = ''
   const body = Object.fromEntries(fields.value.map((field) => {
     const value = form[field.prop]
+    if (field.asString && value != null) return [field.prop, String(value)]
     return [field.prop, typeof value === 'string' && field.type !== 'password' ? value.trim() : value]
   }))
   try {
@@ -253,6 +323,7 @@ async function showDetail(row) {
   try {
     detail.value = await http.get(props.config.endpoint + '/' + row.id)
     detailVisible.value = true
+    loadReferenceNames([detail.value])
   } catch (error) {
     ElMessage.error(error.message)
   }
@@ -303,5 +374,6 @@ async function perform(row, action, request, successMessage) {
 .ledger-pagination { margin-top: 16px; }
 .list-error { margin-bottom: 12px; }
 .search-desk :deep(.el-form-item) { margin-bottom: 0; }
+.lawyer-filter { width: min(100%, 290px); }
 .detail-image { display: block; max-width: 100%; max-height: 240px; margin: 16px auto 0; object-fit: contain; }
 </style>

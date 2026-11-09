@@ -8,6 +8,9 @@ import com.example.dgkl.schedule.dto.ScheduleBlockRequest;
 import com.example.dgkl.schedule.dto.ScheduleReservationRequest;
 import com.example.dgkl.schedule.dto.ScheduleRuleRequest;
 import com.example.dgkl.schedule.dto.ScheduleSlotResponse;
+import com.example.dgkl.schedule.dto.WeeklyScheduleRequest;
+import com.example.dgkl.schedule.dto.WeeklyScheduleResponse;
+import com.example.dgkl.schedule.dto.WeeklyScheduleRule;
 import com.example.dgkl.schedule.entity.ScheduleBlock;
 import com.example.dgkl.schedule.entity.ScheduleReservation;
 import com.example.dgkl.schedule.entity.ScheduleRule;
@@ -25,13 +28,24 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,7 +55,8 @@ public class ScheduleServiceImpl implements ScheduleService {
     private static final String RELEASED = "RELEASED";
     private static final String REJECTED = "REJECTED";
     private static final int LIST_DAYS = 35;
-    private static final int WORKING_DAYS_TO_DISPLAY = 5;
+    private static final Comparator<ScheduleRule> RULE_ORDER = Comparator.comparing(ScheduleRule::getWeekday)
+            .thenComparing(ScheduleRule::getStartTime);
 
     private final ScheduleRuleMapper ruleMapper;
     private final ScheduleBlockMapper blockMapper;
@@ -107,6 +122,38 @@ public class ScheduleServiceImpl implements ScheduleService {
         remaining.removeIf(rule -> id.equals(rule.getId()));
         requireReservedSlotsStillOpen(lawyerId, remaining);
         ruleMapper.deleteById(id);
+    }
+
+    @Override
+    @Transactional(isolation = Isolation.REPEATABLE_READ, readOnly = true)
+    public WeeklyScheduleResponse weeklyRules(Long lawyerId) {
+        Long verifiedId = lawyers.forCreate(lawyerId, null);
+        return weeklyResponse(verifiedId, ruleMapper.hasConfiguredRules(verifiedId), allRules(verifiedId));
+    }
+
+    @Override
+    @GlobalLock
+    @Transactional(isolation = Isolation.READ_COMMITTED, rollbackFor = Exception.class)
+    public WeeklyScheduleResponse replaceWeeklyRules(Long lawyerId, WeeklyScheduleRequest request) {
+        Long verifiedId = lawyers.forCreate(lawyerId, null);
+        guardMapper.lock(verifiedId);
+        List<ScheduleRule> currentRules = allRules(verifiedId);
+        boolean configured = ruleMapper.hasConfiguredRules(verifiedId);
+        WeeklyScheduleResponse current = weeklyResponse(verifiedId, configured, currentRules);
+        if (!current.revision().equals(request.revision())) {
+            throw new BusinessException(409, "周排班已被修改，请重新加载后再保存");
+        }
+        if (!configured && request.rules().isEmpty()) {
+            throw new BusinessException("请保留至少一个时段，或将默认时段全部关闭");
+        }
+
+        Map<Long, ScheduleRule> existing = currentRules.stream()
+                .collect(Collectors.toMap(ScheduleRule::getId, rule -> rule));
+        List<ScheduleRule> replacement = replacementRules(verifiedId, request.rules(), existing);
+        requireNoWeeklyOverlap(replacement);
+        requireReservedSlotsStillOpen(verifiedId, replacement);
+        saveWeeklyRules(existing, replacement);
+        return weeklyResponse(verifiedId, true, allRules(verifiedId));
     }
 
     @Override
@@ -176,21 +223,14 @@ public class ScheduleServiceImpl implements ScheduleService {
         List<ScheduleBlock> blocks = blocksBetween(lawyerId, now, end);
         List<ScheduleReservation> reservations = activeReservationsBetween(lawyerId, now, end);
         List<ScheduleSlotResponse> slots = new ArrayList<>();
-        int days = 0;
         for (LocalDate date = now.toLocalDate(); date.isBefore(end.toLocalDate()); date = date.plusDays(1)) {
             List<LocalDateTime> starts = SchedulePolicy.starts(date, rules, configured).stream()
                     .filter(start -> start.isAfter(now))
                     .toList();
-            if (starts.isEmpty()) {
-                continue;
-            }
             for (LocalDateTime start : starts) {
                 LocalDateTime slotEnd = start.plusHours(1);
                 String reason = unavailableReason(start, slotEnd, blocks, reservations);
                 slots.add(new ScheduleSlotResponse(date, start, slotEnd, reason == null, reason));
-            }
-            if (++days == WORKING_DAYS_TO_DISPLAY) {
-                break;
             }
         }
         return slots;
@@ -245,19 +285,113 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     private List<ScheduleRule> allRules(Long lawyerId) {
         return new ArrayList<>(ruleMapper.selectList(Wrappers.<ScheduleRule>lambdaQuery()
-                .eq(ScheduleRule::getLawyerId, lawyerId)));
+                .eq(ScheduleRule::getLawyerId, lawyerId)
+                .orderByAsc(ScheduleRule::getWeekday, ScheduleRule::getStartTime, ScheduleRule::getId)));
     }
 
     private void applyRule(ScheduleRule rule, ScheduleRuleRequest request) {
-        if (request.startTime().getSecond() != 0 || request.startTime().getNano() != 0
-                || request.endTime().getSecond() != 0 || request.endTime().getNano() != 0
-                || Duration.between(request.startTime(), request.endTime()).toMinutes() < 60) {
+        applyRule(rule, request.weekday(), request.startTime(), request.endTime(), request.enabled());
+    }
+
+    private void applyRule(ScheduleRule rule, Integer weekday, LocalTime startTime, LocalTime endTime,
+                           Integer enabled) {
+        if (startTime.getSecond() != 0 || startTime.getNano() != 0
+                || endTime.getSecond() != 0 || endTime.getNano() != 0
+                || Duration.between(startTime, endTime).toMinutes() < 60) {
             throw new BusinessException("排班起止时间精确到分钟，且时长至少为一小时");
         }
-        rule.setWeekday(request.weekday());
-        rule.setStartTime(request.startTime());
-        rule.setEndTime(request.endTime());
-        rule.setEnabled(request.enabled());
+        rule.setWeekday(weekday);
+        rule.setStartTime(startTime);
+        rule.setEndTime(endTime);
+        rule.setEnabled(enabled);
+    }
+
+    private WeeklyScheduleResponse weeklyResponse(Long lawyerId, boolean configured, List<ScheduleRule> rules) {
+        List<WeeklyScheduleRule> items = new ArrayList<>();
+        if (configured) {
+            rules.forEach(rule -> items.add(weeklyItem(rule, rule.getId())));
+        } else {
+            for (int weekday = 1; weekday <= 5; weekday++) {
+                for (SchedulePolicy.TimeWindow window : SchedulePolicy.defaultWindows(weekday)) {
+                    items.add(new WeeklyScheduleRule(null, weekday, window.startTime(), window.endTime(), 1));
+                }
+            }
+        }
+        return new WeeklyScheduleResponse(revision(lawyerId, configured, items), configured, items);
+    }
+
+    private String revision(Long lawyerId, boolean configured, List<WeeklyScheduleRule> rules) {
+        StringBuilder state = new StringBuilder().append(lawyerId).append('|').append(configured);
+        for (WeeklyScheduleRule rule : rules) {
+            state.append('|').append(rule.id()).append(',').append(rule.weekday()).append(',')
+                    .append(rule.startTime()).append(',').append(rule.endTime()).append(',')
+                    .append(rule.enabled());
+        }
+        try {
+            byte[] bytes = state.toString().getBytes(StandardCharsets.UTF_8);
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is unavailable", exception);
+        }
+    }
+
+    private List<ScheduleRule> replacementRules(Long lawyerId, List<WeeklyScheduleRule> items,
+                                                Map<Long, ScheduleRule> existing) {
+        Set<Long> retained = new HashSet<>();
+        for (WeeklyScheduleRule item : items) {
+            if (item.id() == null) {
+                continue;
+            }
+            if (!existing.containsKey(item.id())) {
+                throw new BusinessException("排班规则不属于该律师或已删除");
+            }
+            if (!retained.add(item.id())) {
+                throw new BusinessException("周排班包含重复的规则编号");
+            }
+        }
+        Map<WeeklyScheduleRule, Long> unchanged = new HashMap<>();
+        existing.values().stream().filter(rule -> !retained.contains(rule.getId()))
+                .forEach(rule -> unchanged.put(weeklyItem(rule, null), rule.getId()));
+        List<ScheduleRule> rules = new ArrayList<>(items.size());
+        for (WeeklyScheduleRule item : items) {
+            ScheduleRule rule = new ScheduleRule();
+            rule.setId(item.id() == null ? unchanged.remove(item) : item.id());
+            rule.setLawyerId(lawyerId);
+            applyRule(rule, item.weekday(), item.startTime(), item.endTime(), item.enabled());
+            rules.add(rule);
+        }
+        return rules;
+    }
+
+    private void requireNoWeeklyOverlap(List<ScheduleRule> rules) {
+        rules.sort(RULE_ORDER);
+        for (int index = 1; index < rules.size(); index++) {
+            ScheduleRule previous = rules.get(index - 1);
+            ScheduleRule current = rules.get(index);
+            if (previous.getWeekday().equals(current.getWeekday())
+                    && previous.getEndTime().isAfter(current.getStartTime())) {
+                throw new BusinessException(409, "同一天的排班规则不得重叠");
+            }
+        }
+    }
+
+    private void saveWeeklyRules(Map<Long, ScheduleRule> existing, List<ScheduleRule> replacement) {
+        Set<Long> retained = replacement.stream().map(ScheduleRule::getId).filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        existing.keySet().stream().filter(id -> !retained.contains(id)).forEach(ruleMapper::deleteById);
+        for (ScheduleRule rule : replacement) {
+            Long id = rule.getId();
+            if (id == null) {
+                ruleMapper.insert(rule);
+            } else if (!weeklyItem(rule, id).equals(weeklyItem(existing.get(id), id))) {
+                ruleMapper.updateById(rule);
+            }
+        }
+    }
+
+    private WeeklyScheduleRule weeklyItem(ScheduleRule rule, Long id) {
+        return new WeeklyScheduleRule(id, rule.getWeekday(), rule.getStartTime(), rule.getEndTime(), rule.getEnabled());
     }
 
     private void validateRules(Long lawyerId, ScheduleRule candidate) {

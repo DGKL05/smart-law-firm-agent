@@ -10,6 +10,7 @@
         <router-link to="/law-firms">律所</router-link>
         <router-link to="/lawyers">律师</router-link>
         <router-link v-if="auth.isLogin" to="/user/consultations">用户中心</router-link>
+        <router-link v-if="auth.isLawyer" to="/lawyer-center/dashboard">律师工作台</router-link>
         <router-link v-if="auth.isAdmin" to="/admin/stats">管理后台</router-link>
         <router-link v-if="!auth.isLogin" to="/login">登录</router-link>
         <span v-else class="nav-user">{{ auth.user?.nickname || auth.user?.username }}</span>

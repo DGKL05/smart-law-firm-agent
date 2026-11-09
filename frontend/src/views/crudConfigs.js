@@ -1,10 +1,15 @@
+import { auditResourceOptions } from '../api/crudReferences'
+
 const field = (prop, label, type = 'text', options = {}) => ({ prop, label, type, ...options })
 const required = (prop, label, type, options) => field(prop, label, type, { required: true, ...options })
 const numeric = (prop, label, options) => field(prop, label, 'number', options)
 const option = (value, label) => ({ value, label })
 const choice = (prop, label, options, initial) => field(prop, label, 'select', { options, initial })
-const personId = required('userId', '用户 ID', 'number')
-const lawyerId = required('lawyerId', '律师 ID', 'number')
+const reference = (prop, label, kind, options) => field(prop, label, 'reference', { reference: kind, ...options })
+const personId = reference('userId', '用户', 'users', { required: true })
+const lawyerId = reference('lawyerId', '律师', 'lawyers', { required: true })
+const firmId = reference('lawFirmId', '律所', 'law-firms', { required: true, nameProp: 'lawFirmName' })
+const linkedAccount = reference('userId', '绑定账号', 'users')
 const status = choice('status', '状态', [option(1, '启用'), option(0, '停用')], 1)
 const readFlag = choice('readFlag', '阅读状态', [option(0, '未读'), option(1, '已读')], 0)
 const time = (prop, label) => required(prop, label, 'datetime')
@@ -16,12 +21,14 @@ const lawyerName = field('lawyerName', '律师')
 const dateCreated = field('createTime', '创建时间', 'datetime')
 const roles = [option('ADMIN', '管理员'), option('USER', '普通用户'), option('LAWYER', '律师')]
 
-const consultationFields = [title, required('question', '问题', 'textarea'), numeric('lawyerId', '律师 ID（选填）')]
+const question = required('question', '问题', 'textarea')
+const consultationFields = [title, question, numeric('lawyerId', '律师 ID（选填）')]
+const consultationLawyer = reference('lawyerId', '律师', 'lawyers')
 const consultationStatus = choice('status', '状态', [
   option('OPEN', '待回复'), option('REPLIED', '已回复'), option('CLOSED', '已关闭')
 ])
-const consultationColumns = [title, numeric('lawyerId', '律师 ID'), field('question', '问题'),
-  field('reply', '回复'), consultationStatus, dateCreated]
+const consultationContent = [field('question', '问题'), field('reply', '回复'), consultationStatus, dateCreated]
+const consultationColumns = [title, numeric('lawyerId', '律师 ID'), ...consultationContent]
 const caseStatus = choice('status', '状态', [option('ACTIVE', '办理中'), option('CLOSED', '已结案')], 'ACTIVE')
 const caseFields = [personId, lawyerId, required('caseNo', '案件编号'), title,
   field('caseType', '案件类型'), description, time('startTime', '开始时间'), time('endTime', '结束时间'), caseStatus]
@@ -35,7 +42,7 @@ const noticeColumns = [title, body, readFlag, dateCreated]
 const firmFields = [required('name', '律所名称'), field('provinceCode', '省份编码'), field('provinceName', '省份'),
   field('city', '城市'), field('address', '地址'), field('phone', '电话'), field('email', '邮箱'),
   field('specialties', '专长'), description, field('licenseNo', '许可证号'), status]
-const lawyerFields = [required('lawFirmId', '律所 ID', 'number'), numeric('userId', '绑定账号 ID'),
+const lawyerFields = [firmId, linkedAccount,
   required('name', '姓名'), field('gender', '性别'), field('phone', '电话'), field('email', '邮箱'),
   field('category', '分类'), field('title', '职称'), numeric('experienceYears', '执业年限', { min: 0, max: 70 }),
   field('goodAt', '擅长方向'), description, status]
@@ -50,6 +57,8 @@ const ruleFields = [
   choice('enabled', '状态', [option(1, '开放'), option(0, '关闭')], 1)
 ]
 const blockFields = [time('startTime', '开始时间'), time('endTime', '结束时间'), required('reason', '停诊原因')]
+const auditType = field('targetType', '资源类型', 'select', { options: auditResourceOptions, allowCreate: true })
+const auditTarget = field('targetId', '资源对象', 'reference', { referenceFrom: 'targetType', asString: true })
 const cancel = {
   label: '取消预约', suffix: '/cancel', danger: true,
   when: (row) => row.status === '已预约' || row.status === '预约处理中'
@@ -111,30 +120,32 @@ export const adminConfigs = {
     asset: { suffix: '/photo', prop: 'photoUrl', label: '上传照片' }
   }),
   lawyers: crud('律师管理', '/api/admin/lawyers', lawyerFields, {
-    columns: [field('name', '律师'), field('lawFirmName', '律所'), numeric('userId', '账号 ID'),
+    columns: [field('name', '律师'), firmId, linkedAccount,
       field('category', '分类'), field('title', '职称'), status],
     asset: { suffix: '/avatar', prop: 'avatarUrl', label: '上传头像' }
   }),
-  consultations: crud('咨询管理', '/api/admin/consultations', [personId, ...consultationFields], {
-    columns: [personId, ...consultationColumns], extraActions: [close], canEdit: (row) => row.status === 'OPEN'
+  consultations: crud('咨询管理', '/api/admin/consultations', [personId, title, question, consultationLawyer], {
+    columns: [personId, title, consultationLawyer, ...consultationContent],
+    extraActions: [close], canEdit: (row) => row.status === 'OPEN'
   }),
   cases: crud('案件管理', '/api/admin/cases', caseFields, { columns: [personId, lawyerId, ...caseColumns] }),
   appointments: crud('预约管理', '/api/admin/appointments', [personId, ...appointmentFields], {
     columns: [personId, ...appointmentColumns], updateFields: [remark],
     canRemove: canRemoveAppointment, canEdit: (row) => row.status === '已预约', extraActions: [cancel]
   }),
-  schedules: crud('排班规则', '/api/admin/schedules', [lawyerId, ...ruleFields], { search: false }),
-  'schedule-blocks': crud('停诊管理', '/api/admin/schedule-blocks', [lawyerId, ...blockFields], { search: false }),
+  'schedule-blocks': crud('停诊管理', '/api/admin/schedule-blocks', [lawyerId, ...blockFields], {
+    search: false, lawyerFilter: true
+  }),
   notifications: crud('通知管理', '/api/admin/notifications', noticeFields, { columns: [personId, ...noticeColumns] }),
   'notification-templates': crud('通知模板', '/api/admin/notification-templates', [
     required('code', '模板编码'), title, body
   ]),
   'audit-events': crud('操作审计', '/api/admin/audit-events', [
-    required('action', '操作'), field('targetType', '资源类型'), field('targetId', '资源 ID'),
+    required('action', '操作'), auditType, auditTarget,
     field('detail', '说明', 'textarea')
   ], {
-    columns: [numeric('adminUserId', '操作员'), field('action', '操作'), field('targetType', '资源类型'),
-      field('targetId', '资源 ID'), field('detail', '说明'), choice('source', '来源',
+    columns: [reference('adminUserId', '操作员', 'users'), field('action', '操作'), auditType,
+      auditTarget, field('detail', '说明'), choice('source', '来源',
         [option('GATEWAY', '系统'), option('MANUAL', '人工')]), dateCreated],
     updateFields: [field('detail', '说明', 'textarea')],
     canEdit: (row) => row.source === 'MANUAL', canRemove: (row) => row.source === 'MANUAL'

@@ -24,7 +24,7 @@
           <el-menu-item index="/admin/consultations"><el-icon><ChatLineRound /></el-icon>咨询管理</el-menu-item>
           <el-menu-item index="/admin/cases"><el-icon><Document /></el-icon>案件管理</el-menu-item>
           <el-menu-item index="/admin/appointments"><el-icon><Calendar /></el-icon>预约管理</el-menu-item>
-          <el-menu-item index="/admin/schedules"><el-icon><Clock /></el-icon>排班规则</el-menu-item>
+          <el-menu-item index="/admin/schedules"><el-icon><Clock /></el-icon>每周排班</el-menu-item>
           <el-menu-item index="/admin/schedule-blocks"><el-icon><Calendar /></el-icon>停诊管理</el-menu-item>
           <el-menu-item index="/admin/notifications"><el-icon><Bell /></el-icon>通知管理</el-menu-item>
           <el-menu-item index="/admin/notification-templates"><el-icon><Bell /></el-icon>通知模板</el-menu-item>

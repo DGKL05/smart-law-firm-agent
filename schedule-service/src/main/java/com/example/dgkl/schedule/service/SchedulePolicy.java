@@ -9,17 +9,22 @@ import java.util.List;
 import java.util.stream.Stream;
 
 public final class SchedulePolicy {
+    private static final List<TimeWindow> WEEKDAY_WINDOWS = List.of(
+            new TimeWindow(LocalTime.of(9, 0), LocalTime.of(12, 0)),
+            new TimeWindow(LocalTime.of(14, 0), LocalTime.of(17, 0)));
+
+    public record TimeWindow(LocalTime startTime, LocalTime endTime) {
+    }
+
     private SchedulePolicy() {
     }
 
     public static List<LocalDateTime> starts(LocalDate date, List<ScheduleRule> rules, boolean configured) {
         int weekday = date.getDayOfWeek().getValue();
         if (!configured) {
-            if (weekday > 5) {
-                return List.of();
-            }
-            return Stream.concat(hours(date, LocalTime.of(9, 0), LocalTime.of(12, 0)),
-                    hours(date, LocalTime.of(14, 0), LocalTime.of(17, 0))).toList();
+            return defaultWindows(weekday).stream()
+                    .flatMap(window -> hours(date, window.startTime(), window.endTime()))
+                    .toList();
         }
         return rules.stream()
                 .filter(rule -> rule.getWeekday() == weekday && rule.getEnabled() == 1)
@@ -27,6 +32,10 @@ public final class SchedulePolicy {
                 .distinct()
                 .sorted()
                 .toList();
+    }
+
+    public static List<TimeWindow> defaultWindows(int weekday) {
+        return weekday >= 1 && weekday <= 5 ? WEEKDAY_WINDOWS : List.of();
     }
 
     public static boolean overlaps(LocalDateTime firstStart, LocalDateTime firstEnd,

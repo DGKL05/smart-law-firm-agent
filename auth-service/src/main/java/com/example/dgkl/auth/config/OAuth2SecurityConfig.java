@@ -2,7 +2,9 @@ package com.example.dgkl.auth.config;
 
 import com.example.dgkl.auth.service.OAuth2SessionService;
 import com.example.dgkl.auth.service.UserService;
+import com.example.dgkl.common.response.ApiResponse;
 import com.example.dgkl.common.security.SecurityUser;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,6 +45,7 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 
@@ -74,12 +77,21 @@ public class OAuth2SecurityConfig {
     @Bean
     @Order(2)
     public SecurityFilterChain authorizationLoginChain(
-            HttpSecurity http, HttpSessionRequestCache oauthRequestCache, DaoAuthenticationProvider formProvider)
+            HttpSecurity http, HttpSessionRequestCache oauthRequestCache, DaoAuthenticationProvider formProvider,
+            ObjectMapper objectMapper)
             throws Exception {
         return http.securityMatcher(LOGIN_ENDPOINT, "/api/oauth2/csrf")
                 .authenticationProvider(formProvider)
                 .requestCache(cache -> cache.requestCache(oauthRequestCache))
                 .authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
+                .exceptionHandling(errors -> errors.accessDeniedHandler((request, response, exception) -> {
+                    // 直接写出 403，避免容器错误分派进入另一个认证链。
+                    int status = HttpStatus.FORBIDDEN.value();
+                    response.setStatus(status);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+                    objectMapper.writeValue(response.getWriter(), ApiResponse.fail(status, "登录请求已过期，请刷新后重试"));
+                }))
                 .formLogin(form -> form.loginPage("/login").loginProcessingUrl(LOGIN_ENDPOINT)
                         .successHandler((request, response, authentication) ->
                                 resumeAuthorization(request, response, oauthRequestCache))

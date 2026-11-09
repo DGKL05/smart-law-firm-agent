@@ -8,6 +8,7 @@ import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
 import com.alibaba.csp.sentinel.slots.block.flow.param.ParamFlowRule;
 import com.alibaba.csp.sentinel.slots.block.flow.param.ParamFlowRuleManager;
 import com.example.dgkl.common.exception.BusinessException;
+import com.example.dgkl.lawyer.service.LawyerService;
 import com.example.dgkl.lawyer.service.PublicLawyerService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,7 @@ import static org.mockito.Mockito.when;
 
 class PublicLawyerSentinelTest {
     private final PublicLawyerService service = mock(PublicLawyerService.class);
-    private final PublicLawyerController controller = new PublicLawyerController(service);
+    private final PublicLawyerController controller = new PublicLawyerController(service, mock(LawyerService.class));
 
     @AfterEach
     void clearRules() {

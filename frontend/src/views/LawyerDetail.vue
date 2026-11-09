@@ -76,32 +76,12 @@
         <div class="desk-toolbar">
           <div>
             <div class="desk-title">可预约法律咨询时间</div>
-            <div class="muted">按律师最新排班展示。已占用、已过期和停诊时段不可预约。</div>
+            <div class="muted">在月历上选择日期，再选择当天的咨询时段。</div>
           </div>
           <span class="record-count">{{ availableSlots.length }} / {{ scheduleSlots.length }} 可约</span>
         </div>
-        <el-empty v-if="!scheduleSlots.length" description="暂无开放时段" />
-        <div class="appointment-grid polished-appointment-grid">
-          <article
-            v-for="slot in scheduleSlots"
-            :key="slot.startTime"
-            class="appointment-card polished-appointment-card"
-            :class="{ unavailable: !slot.available }"
-          >
-            <span class="appointment-mark">{{ slot.available ? '可约' : slot.unavailableReason }}</span>
-            <strong>{{ formatSlot(slot) }}</strong>
-            <small>{{ slot.available ? '适合初次咨询、材料审查和方案沟通' : '该时间段暂不可预约' }}</small>
-            <el-button
-              v-if="slot.available"
-              type="primary"
-              size="small"
-              :loading="bookingTime === slot.startTime"
-              @click="book(slot)"
-            >
-              预约此时段
-            </el-button>
-          </article>
-        </div>
+        <BookingCalendar :key="lawyerId" :slots="scheduleSlots" :busy="bookingPending || cancellingId !== null"
+          @book="book" />
       </div>
 
       <div v-if="auth.isLogin" class="detail-section">
@@ -123,6 +103,7 @@
               plain
               size="small"
               :loading="cancellingId === appointment.id"
+              :disabled="bookingPending || cancellingId !== null"
               @click="cancelAppointment(appointment)"
             >
               取消预约
@@ -146,27 +127,44 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import http from '../api/http'
+import BookingCalendar from '../components/BookingCalendar.vue'
 import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const lawyerId = computed(() => String(route.params.id || ''))
 const item = ref({})
 const appointments = ref([])
-const bookingTime = ref('')
+const bookingPending = ref(false)
 const cancellingId = ref(null)
 const loading = ref(true)
 const loadError = ref('')
-const scheduleSlots = computed(() => item.value.scheduleSlots || [])
-const availableSlots = computed(() => scheduleSlots.value.filter((slot) => slot.available))
+const unavailableSlots = ref(new Map())
+const bookingDate = new Intl.DateTimeFormat('zh-CN', {
+  timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+})
+let loadVersion = 0
+let disposed = false
+
 const activeAppointments = computed(() => appointments.value.filter((appointment) => {
   const inactiveStatuses = ['已取消', '已完成', '预约失败']
-  return appointment.lawyerId === Number(route.params.id) && !inactiveStatuses.includes(appointment.status)
+  return String(appointment.lawyerId) === lawyerId.value && !inactiveStatuses.includes(appointment.status)
 }))
+const scheduleSlots = computed(() => {
+  const myTimes = new Set(activeAppointments.value.map((appointment) => timeKey(appointment.appointmentTime)))
+  return (item.value.scheduleSlots || []).map((slot) => {
+    if (!slot.available) return slot
+    const reason = unavailableSlots.value.get(slot.startTime)
+      || (myTimes.has(timeKey(slot.startTime)) ? '已有预约' : '')
+    return reason ? { ...slot, available: false, unavailableReason: reason } : slot
+  })
+})
+const availableSlots = computed(() => scheduleSlots.value.filter((slot) => slot.available))
 const goodAtTags = computed(() => splitText(item.value.goodAt))
 
 function splitText(value) {
@@ -174,7 +172,8 @@ function splitText(value) {
 }
 
 function formatSlot(slot) {
-  return `${formatDate(slot.date)} ${formatTime(slot.startTime)}-${formatTime(slot.endTime)}`
+  const date = bookingDate.format(new Date(slot.date + 'T00:00:00Z'))
+  return `${date} ${formatTime(slot.startTime)}–${formatTime(slot.endTime)}`
 }
 
 function formatDate(value) {
@@ -185,7 +184,7 @@ function formatDate(value) {
 }
 
 function formatTime(value) {
-  return value?.slice(11, 16) || ''
+  return value?.includes('T') ? value.slice(11, 16) : value?.slice(0, 5) || ''
 }
 
 function formatDateTime(value) {
@@ -193,70 +192,122 @@ function formatDateTime(value) {
   return `${formatDate(value.slice(0, 10))} ${formatTime(value)}`
 }
 
-async function loadDetail() {
-  item.value = await http.get(`/api/public/lawyers/${route.params.id}`)
+function timeKey(value) {
+  return value?.slice(0, 16)
 }
 
-async function loadAppointments() {
+function isCurrent(id, version = loadVersion) {
+  return !disposed && lawyerId.value === id && loadVersion === version
+}
+
+async function refresh(id, initial = false) {
+  const version = ++loadVersion
+  const detail = http.get(`/api/public/lawyers/${id}`).then((data) => {
+    if (!isCurrent(id, version)) return
+    item.value = data
+    unavailableSlots.value.clear()
+  }).catch((error) => {
+    if (!isCurrent(id, version)) return
+    if (initial) loadError.value = error.message
+    else ElMessage.warning('暂时无法刷新日历，请稍后重试')
+  }).finally(() => {
+    if (isCurrent(id, version)) loading.value = false
+  })
   if (!auth.isLogin) {
-    appointments.value = []
+    if (isCurrent(id, version)) appointments.value = []
+    await detail
     return
   }
-  const data = await http.get('/api/me/appointments', { params: { pageNum: 1, pageSize: 100 } })
-  appointments.value = data.records || []
+
+  const mine = http.get('/api/me/appointments', { params: { pageNum: 1, pageSize: 100 } }).then((data) => {
+    if (isCurrent(id, version)) appointments.value = data.records || []
+  }).catch((error) => {
+    if (isCurrent(id, version)) ElMessage.warning(error.message)
+  })
+  await Promise.all([detail, mine])
 }
 
 async function book(slot) {
+  if (bookingPending.value || cancellingId.value !== null) return
   if (!auth.isLogin) {
     ElMessage.warning('请先登录后再预约')
     router.push('/login')
     return
   }
-  bookingTime.value = slot.startTime
+  const id = lawyerId.value
+  const version = loadVersion
+  const name = item.value.name
+  bookingPending.value = true
   try {
+    const confirmed = await ElMessageBox.confirm(
+      `${name} 律师 · ${formatSlot(slot)}`, '确认预约',
+      { confirmButtonText: '确认预约', cancelButtonText: '重新选择', type: 'info' }
+    ).then(() => true, () => false)
+    if (!confirmed || !isCurrent(id, version)) return
+    if (!scheduleSlots.value.some((current) => current.startTime === slot.startTime
+        && current.endTime === slot.endTime && current.available)) {
+      ElMessage.warning('该时段状态已变化，请重新选择')
+      await refresh(id)
+      return
+    }
     const result = await http.post('/api/me/appointments/book', {
-      lawyerId: Number(route.params.id),
+      lawyerId: Number(id),
       appointmentTime: slot.startTime,
-      remark: `${item.value.name} 法律咨询`
+      remark: `${name} 法律咨询`
     })
+    if (!isCurrent(id, version)) return
+    unavailableSlots.value.set(slot.startTime, result.status === '预约失败' ? '时段状态已变化' : '已有预约')
+    if (result.id && result.status !== '预约失败') {
+      appointments.value = [result, ...appointments.value.filter((appointment) => appointment.id !== result.id)]
+    }
     if (result.status === '已预约') ElMessage.success('预约成功')
     else if (result.status === '预约失败') ElMessage.warning(result.failureReason || '该时段无法预约')
     else ElMessage.info('预约请求已受理，请在我的预约中查看结果')
-    await Promise.all([loadDetail(), loadAppointments()])
+    await refresh(id)
   } catch (error) {
-    ElMessage.error(error.message)
+    if (!isCurrent(id, version)) return
+    if (error.response?.status === 409 || error.response?.data?.code === 409) {
+      unavailableSlots.value.set(slot.startTime, '时段状态已变化')
+      ElMessage.warning(error.message || '该时段状态已变化，请重新选择')
+      await refresh(id)
+    } else {
+      ElMessage.error(error.message)
+    }
   } finally {
-    bookingTime.value = ''
+    bookingPending.value = false
   }
 }
 
 async function cancelAppointment(appointment) {
+  if (cancellingId.value !== null || bookingPending.value) return
+  const id = lawyerId.value
+  const version = loadVersion
   cancellingId.value = appointment.id
   try {
     const result = await http.put('/api/me/appointments/' + appointment.id + '/cancel')
+    if (!isCurrent(id, version)) return
     if (result.status === '已取消') ElMessage.success('已取消预约')
     else ElMessage.info('取消请求已受理，请稍后查看结果')
-    await Promise.all([loadDetail(), loadAppointments()])
+    await refresh(id)
   } catch (error) {
-    ElMessage.error(error.message)
+    if (isCurrent(id, version)) ElMessage.error(error.message)
   } finally {
     cancellingId.value = null
   }
 }
 
-onMounted(async () => {
-  try {
-    await loadDetail()
-  } catch (error) {
-    loadError.value = error.message
-  } finally {
-    loading.value = false
-  }
-  try {
-    await loadAppointments()
-  } catch (error) {
-    ElMessage.warning(error.message)
-  }
+watch(lawyerId, (id) => {
+  if (!id) return
+  item.value = {}
+  appointments.value = []
+  unavailableSlots.value.clear()
+  loadError.value = ''
+  loading.value = true
+  refresh(id, true)
+}, { immediate: true })
+
+onBeforeUnmount(() => {
+  disposed = true
 })
 </script>
 

@@ -44,7 +44,10 @@
 
       <div v-if="records.length" class="firm-card-grid">
         <article v-for="firm in records" :key="firm.id" class="directory-card firm-directory-card">
-          <div class="directory-card-mark">律</div>
+          <el-avatar class="directory-card-mark" shape="square" :src="firm.photoUrl || undefined"
+            :alt="firm.name + '的律所照片'">
+            律
+          </el-avatar>
           <div class="directory-card-main">
             <div class="directory-card-head">
               <div>

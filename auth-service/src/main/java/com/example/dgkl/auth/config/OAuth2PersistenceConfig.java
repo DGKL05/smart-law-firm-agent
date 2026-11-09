@@ -33,7 +33,8 @@ public class OAuth2PersistenceConfig {
     private static final String RESOURCE_SERVER_REGISTRATION_ID = "smart-law-resource-server-v1";
     private static final String API_SCOPE = "smart-law-api";
     private static final String DEFAULT_CALLBACKS =
-            "http://localhost:5173/oauth/callback,http://127.0.0.1:5173/oauth/callback";
+            "http://localhost:5173/oauth/callback,http://127.0.0.1:5173/oauth/callback"
+                    + ",http://localhost:5174/oauth/callback,http://127.0.0.1:5174/oauth/callback";
 
     @Bean
     public RegisteredClientRepository registeredClientRepository(

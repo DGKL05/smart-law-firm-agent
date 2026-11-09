@@ -11,6 +11,7 @@ import com.example.dgkl.common.response.PageResult;
 import com.example.dgkl.lawyer.dto.LawFirmDetailResponse;
 import com.example.dgkl.lawyer.dto.LawyerResponse;
 import com.example.dgkl.lawyer.entity.LawFirm;
+import com.example.dgkl.lawyer.service.LawyerService;
 import com.example.dgkl.lawyer.service.PublicLawyerService;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -23,12 +24,20 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/public")
 @RequiredArgsConstructor
 public class PublicLawyerController {
     static final String DETAIL_RESOURCE = "lawyer:public-detail";
     private final PublicLawyerService publicLawyerService;
+    private final LawyerService lawyerService;
+
+    @GetMapping("/home/stats")
+    public ApiResponse<Map<String, Long>> homeStats() {
+        return ApiResponse.success(lawyerService.stats());
+    }
 
     @GetMapping("/law-firms")
     public ApiResponse<PageResult<LawFirm>> lawFirms(

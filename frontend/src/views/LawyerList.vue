@@ -43,10 +43,10 @@
 
       <div v-if="records.length" class="lawyer-directory-grid">
         <article v-for="lawyer in records" :key="lawyer.id" class="directory-card lawyer-directory-card">
-          <div class="lawyer-avatar large-card-avatar">
-            <img v-if="lawyer.avatarUrl" :src="lawyer.avatarUrl" :alt="lawyer.name + '的头像'" class="lawyer-photo" />
-            <span v-else>{{ lawyer.name?.slice(0, 1) }}</span>
-          </div>
+          <el-avatar class="lawyer-avatar large-card-avatar" shape="square" :src="lawyer.avatarUrl || undefined"
+            :alt="lawyer.name + '的头像'">
+            {{ lawyer.name?.slice(0, 1) }}
+          </el-avatar>
           <div class="directory-card-main">
             <div class="directory-card-head">
               <div>
@@ -142,7 +142,3 @@ onMounted(async () => {
   await load()
 })
 </script>
-
-<style scoped>
-.lawyer-photo { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
-</style>

@@ -19,6 +19,7 @@ import LawyerAppointments from '../views/lawyer/LawyerAppointments.vue'
 import LawyerConsultations from '../views/lawyer/LawyerConsultations.vue'
 import GenericCrudView from '../views/GenericCrudView.vue'
 import AdminStats from '../views/AdminStats.vue'
+import AdminWeeklySchedule from '../views/AdminWeeklySchedule.vue'
 import AccountSettings from '../views/AccountSettings.vue'
 import { userConfigs, adminConfigs } from '../views/crudConfigs'
 import { getAccessToken } from '../api/oauth'
@@ -81,6 +82,7 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true },
       children: [
         { path: 'stats', component: AdminStats, meta: { requiresAuth: true, requiresAdmin: true } },
+        { path: 'schedules', component: AdminWeeklySchedule },
         ...adminRoutes
       ]
     }

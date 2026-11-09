@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1068" height="471" viewBox="0 0 1068 471" role="img" aria-labelledby="title description">
+  <title id="title">智能律所平台服务架构</title>
+  <desc id="description">浏览器经 Vite 或 Nginx 访问网关，网关路由到七个业务服务。律师详情查询经预约服务读取排班。预约和取消使用 Seata AT。预约服务通过 RabbitMQ 投递通知，AI 服务连接 Dify。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0 8 4 0 8z" fill="#3e6863"/>
+    </marker>
+    <style>
+      text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; fill: #163c37; }
+      .title { font-size: 22px; font-weight: 700; }
+      .label { font-size: 17px; font-weight: 600; }
+      .technical { font-size: 11px; fill: #45655f; }
+      .heading { font-size: 14px; font-weight: 700; fill: #44645e; }
+      .path-label { font-size: 14px; fill: #223f3b; }
+      .link { stroke: #3e6863; stroke-width: 2; fill: none; stroke-linejoin: round; }
+      .node { fill: #fff; stroke: #b8cdc7; }
+    </style>
+  </defs>
+
+  <rect x="1" y="1" width="1066" height="469" rx="16" fill="#f4f8f7" stroke="#c2d4cf"/>
+  <text x="32" y="42" class="title">智能律所平台服务架构</text>
+
+  <g text-anchor="middle">
+    <rect class="node" x="224" y="66" width="140" height="48" rx="8"/>
+    <text class="label" x="294" y="96">浏览器 · Vue</text>
+    <rect class="node" x="408" y="66" width="148" height="48" rx="8"/>
+    <text class="label" x="482" y="96">Vite 或 Nginx</text>
+    <rect x="600" y="66" width="244" height="48" rx="8" fill="#194c43"/>
+    <text x="722" y="96" font-size="17" font-weight="600" style="fill:#fff">Spring Cloud Gateway</text>
+  </g>
+  <g class="link" marker-end="url(#arrow)">
+    <path d="M364 90H405"/>
+    <path d="M556 90H597"/>
+  </g>
+
+  <path class="link" d="M722 114V148M99 148H969"/>
+  <g class="link" marker-end="url(#arrow)">
+    <path d="M99 148V175"/>
+    <path d="M244 148V175"/>
+    <path d="M389 148V175"/>
+    <path d="M534 148V175"/>
+    <path d="M679 148V175"/>
+    <path d="M824 148V175"/>
+    <path d="M969 148V175"/>
+  </g>
+  <g text-anchor="middle">
+    <rect class="node" x="32" y="179" width="134" height="62" rx="8"/>
+    <text class="label" x="99" y="206">认证服务</text>
+    <text class="technical" x="99" y="225">auth-service</text>
+
+    <rect class="node" x="177" y="179" width="134" height="62" rx="8"/>
+    <text class="label" x="244" y="206">后台服务</text>
+    <text class="technical" x="244" y="225">admin-service</text>
+
+    <rect class="node" x="322" y="179" width="134" height="62" rx="8"/>
+    <text class="label" x="389" y="206">律所律师服务</text>
+    <text class="technical" x="389" y="225">lawyer-service</text>
+
+    <rect class="node" x="467" y="179" width="134" height="62" rx="8"/>
+    <text class="label" x="534" y="206">预约案件服务</text>
+    <text class="technical" x="534" y="225">appointment-service</text>
+
+    <rect class="node" x="612" y="179" width="134" height="62" rx="8"/>
+    <text class="label" x="679" y="206">排班服务</text>
+    <text class="technical" x="679" y="225">schedule-service</text>
+
+    <rect class="node" x="757" y="179" width="134" height="62" rx="8"/>
+    <text class="label" x="824" y="206">通知服务</text>
+    <text class="technical" x="824" y="225">notification-service</text>
+
+    <rect class="node" x="902" y="179" width="134" height="62" rx="8"/>
+    <text class="label" x="969" y="206">AI 服务</text>
+    <text class="technical" x="969" y="225">ai-service</text>
+  </g>
+
+  <text x="32" y="284" class="heading">主要调用链路</text>
+  <rect class="node" x="32" y="300" width="1004" height="136" rx="8"/>
+  <path d="M52 345H1016M52 390H1016" stroke="#e0eae7" fill="none"/>
+  <g class="path-label">
+    <text x="52" y="328" font-weight="700">可约时段与事务</text>
+    <text x="236" y="328">律所律师服务 → 预约案件服务 → 排班服务</text>
+    <text x="715" y="328">预约与取消使用 Seata AT</text>
+    <text x="52" y="373" font-weight="700">异步通知</text>
+    <text x="236" y="373">预约案件服务 → RabbitMQ → 通知服务</text>
+    <text x="715" y="373">业务事务成功后投递</text>
+    <text x="52" y="418" font-weight="700">智能对话</text>
+    <text x="236" y="418">AI 服务 → Dify API</text>
+    <text x="715" y="418">上游对话接口</text>
+  </g>
+</svg>

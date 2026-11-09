@@ -112,23 +112,7 @@ docker compose ps -a
 
 后端使用 Java 17、Spring Boot 3.3.6、Spring Cloud 2023.0.4、Spring Cloud Alibaba 2023.0.3.2 和 MyBatis-Plus 3.5.12。前端使用 Vue 3、Vite 6、Vue Router、Pinia 和 Element Plus。各模块版本以 [根 POM](pom.xml) 与 [前端依赖](frontend/package.json) 为准。
 
-```mermaid
-flowchart LR
-    Browser["浏览器 · Vue"] --> Front["Vite 或 Nginx"]
-    Front --> Gateway["Spring Cloud Gateway"]
-    Gateway --> Auth["认证服务"]
-    Gateway --> Lawyer["律所律师服务"]
-    Gateway --> Appt["预约案件服务"]
-    Gateway --> Schedule["排班服务"]
-    Gateway --> Notice["通知服务"]
-    Gateway --> AI["AI 服务"]
-    Gateway --> Admin["后台服务"]
-    Lawyer -->|查询可约时段| Appt
-    Appt -->|预约与取消 · Seata AT| Schedule
-    Appt -->|事务消息表投递| MQ["RabbitMQ"]
-    MQ --> Notice
-    AI --> Dify["Dify API"]
-```
+![智能律所平台服务架构图，包含前端入口、网关、七个业务服务和主要调用链路](docs/architecture.svg)
 
 业务服务各自拥有独立数据库和表。7 个数据库部署在同一 MySQL 容器中。运行时通过 API 或消息跨服务协作，数据库字段中的跨服务关联 ID 用于引用资源。网关和监控服务是额外的基础设施模块。
 

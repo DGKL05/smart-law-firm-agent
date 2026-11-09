@@ -20,6 +20,7 @@
           <el-menu-item index="/user/cases"><el-icon><Document /></el-icon>我的案件</el-menu-item>
           <el-menu-item index="/user/appointments"><el-icon><Calendar /></el-icon>我的预约</el-menu-item>
           <el-menu-item index="/user/notifications"><el-icon><Bell /></el-icon>消息通知</el-menu-item>
+          <el-menu-item index="/user/account"><el-icon><User /></el-icon>账号设置</el-menu-item>
         </el-menu>
       </aside>
       <main class="content">

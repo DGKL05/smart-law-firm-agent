@@ -18,12 +18,17 @@
         <el-menu router background-color="transparent" text-color="#e9e1d0" active-text-color="#ffe1a8">
           <el-menu-item index="/admin/stats"><el-icon><DataAnalysis /></el-icon>系统统计</el-menu-item>
           <el-menu-item index="/admin/users"><el-icon><User /></el-icon>用户管理</el-menu-item>
+          <el-menu-item index="/admin/roles"><el-icon><User /></el-icon>角色管理</el-menu-item>
           <el-menu-item index="/admin/law-firms"><el-icon><OfficeBuilding /></el-icon>律所管理</el-menu-item>
           <el-menu-item index="/admin/lawyers"><el-icon><Avatar /></el-icon>律师管理</el-menu-item>
           <el-menu-item index="/admin/consultations"><el-icon><ChatLineRound /></el-icon>咨询管理</el-menu-item>
           <el-menu-item index="/admin/cases"><el-icon><Document /></el-icon>案件管理</el-menu-item>
           <el-menu-item index="/admin/appointments"><el-icon><Calendar /></el-icon>预约管理</el-menu-item>
+          <el-menu-item index="/admin/schedules"><el-icon><Clock /></el-icon>排班规则</el-menu-item>
+          <el-menu-item index="/admin/schedule-blocks"><el-icon><Calendar /></el-icon>停诊管理</el-menu-item>
           <el-menu-item index="/admin/notifications"><el-icon><Bell /></el-icon>通知管理</el-menu-item>
+          <el-menu-item index="/admin/notification-templates"><el-icon><Bell /></el-icon>通知模板</el-menu-item>
+          <el-menu-item index="/admin/audit-events"><el-icon><Document /></el-icon>操作审计</el-menu-item>
         </el-menu>
       </aside>
       <main class="content">

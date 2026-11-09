@@ -1,17 +1,25 @@
-# SQL 脚本说明
+# 数据库脚本
 
-请按以下顺序手动执行。Windows 命令行或 Docker 容器中导入时，必须使用 UTF-8 连接；脚本内已包含 `SET NAMES utf8mb4`，避免中文初始化数据乱码。
+当前微服务的脚本位于 microservices 目录。MySQL 容器首次初始化数据目录时会依次执行建库、建表、升级检查和演示数据脚本。
 
-1. `001_create_database.sql`：创建数据库并切换到 `smart_law_firm_agent`。
-2. `002_init_schema.sql`：创建系统表、业务表、权限表。
-3. `003_init_data.sql`：写入角色、菜单、测试账号、律所、律师、预约、案件、咨询和通知示例数据。
+已有旧版微服务数据卷时，在应用启动前进入 MySQL 客户端：
 
-Docker MySQL 导入示例：
+~~~powershell
+docker compose exec mysql mysql --default-character-set=utf8mb4 -uroot -p
+~~~
 
-```bash
-docker exec -i smart-law-mysql mysql --default-character-set=utf8mb4 -uroot -proot < sql/001_create_database.sql
-docker exec -i smart-law-mysql mysql --default-character-set=utf8mb4 -uroot -proot < sql/002_init_schema.sql
-docker exec -i smart-law-mysql mysql --default-character-set=utf8mb4 -uroot -proot < sql/003_init_data.sql
-```
+按顺序执行以下命令：
 
-`changes/` 用于记录后续增量变更脚本。本项目当前不会自动执行 SQL。
+~~~sql
+SOURCE /docker-entrypoint-initdb.d/001_create_databases.sql;
+SOURCE /docker-entrypoint-initdb.d/002_apply_service_schemas.sql;
+SOURCE /docker-entrypoint-initdb.d/003_upgrade_business_services.sql;
+~~~
+
+升级脚本补充旧表字段，将旧预约库中的排班和通知复制到各自的新库，并导入已有的有效时段占用。请先备份现有数据卷。若同一个账号绑定了多个有效律师档案，需先保留正确的绑定，再执行唯一索引升级。
+
+应用表结构脚本会在认证库创建 OAuth2 令牌相关表，在预约库、排班库创建 Seata AT 的 `undo_log`，并在 AI 库创建用于校验会话锁持有者的 `ai_chat_guard`。升级脚本会给旧版预约和排班的锁表补齐 `guard_version`。
+
+旧表中状态为 PENDING 的预约保留在列表中并标记为预约失败。用户可在开放时段重新预约。
+
+999_init_data.sql 用于全新数据卷的演示数据初始化。sql 目录下的旧版建库建表脚本对应历史单体数据库。

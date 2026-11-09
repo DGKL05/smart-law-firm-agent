@@ -1,17 +1,52 @@
+x-backend-environment: &backend-environment
+  NACOS_ADDR: nacos:8848
+  NACOS_DISCOVERY_GROUP: ${NACOS_DOCKER_DISCOVERY_GROUP:-SMART_LAW_DOCKER}
+  NACOS_CONFIG_GROUP: ${NACOS_CONFIG_GROUP:-SMART_LAW_DEV}
+  NACOS_CONFIG_NAMESPACE: ${NACOS_CONFIG_NAMESPACE:-}
+  SBA_URL: http://monitor-service:8090
+  SBA_USERNAME: ${SBA_USERNAME:-smartlaw}
+  SBA_PASSWORD: ${SBA_PASSWORD:-}
+  ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+  OAUTH2_INTROSPECTION_CLIENT_SECRET: ${OAUTH2_INTROSPECTION_CLIENT_SECRET:-}
+  OAUTH2_INTROSPECTION_URI: http://auth-service:8081/internal/oauth2/introspect
+  JAVA_TOOL_OPTIONS: -Xms64m -Xmx320m -XX:ActiveProcessorCount=2
+  INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-smart-law-local-internal-token}
+  TZ: Asia/Shanghai
+
+x-mysql-environment: &mysql-environment
+  MYSQL_HOST: mysql
+  MYSQL_PORT: 3306
+  MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+
+x-business-dependencies: &business-dependencies
+  mysql:
+    condition: service_healthy
+  nacos:
+    condition: service_healthy
+  nacos-config-init:
+    condition: service_completed_successfully
+
+x-rabbit-environment: &rabbit-environment
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_PORT: 5672
+  RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-smartlaw}
+  RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-smartlaw-local-rabbit}
+
 services:
   mysql:
     image: mysql:8.0
     container_name: smart-law-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      TZ: Asia/Shanghai
     ports:
-      - "3307:3306"
+      - "127.0.0.1:3307:3306"
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     volumes:
       - mysql-data:/var/lib/mysql
       - ./sql/microservices:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -20,15 +55,86 @@ services:
     image: redis:7
     container_name: smart-law-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
 
   mongodb:
     image: mongo:7
     container_name: smart-law-mongodb
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongo-data:/data/db
+
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    container_name: smart-law-rabbitmq
+    hostname: smart-law-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-smartlaw}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-smartlaw-local-rabbit}
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  seata-server:
+    image: apache/seata-server:2.1.0
+    container_name: smart-law-seata
+    environment:
+      STORE_MODE: file
+      SEATA_STORE_FILE_DIR: /seata-server/sessionStore
+      JVM_XMS: 128m
+      JVM_XMX: 384m
+      JVM_MaxDirectMemorySize: 256m
+    ports:
+      - "127.0.0.1:8091:8091"
+      - "127.0.0.1:7091:7091"
+    volumes:
+      - seata-data:/seata-server/sessionStore
+    restart: unless-stopped
+
+  sentinel-dashboard:
+    build:
+      context: ./docker/sentinel
+      args:
+        SENTINEL_DASHBOARD_SOURCE: ${SENTINEL_DASHBOARD_SOURCE:-https://github.com/alibaba/Sentinel/releases/download/1.8.8/sentinel-dashboard-1.8.8.jar}
+    container_name: smart-law-sentinel
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx320m -XX:ActiveProcessorCount=2
+    ports:
+      - "127.0.0.1:8070:8080"
+    restart: unless-stopped
+
+  zipkin:
+    image: openzipkin/zipkin:3.4.3
+    container_name: smart-law-zipkin
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx384m -XX:ActiveProcessorCount=2
+    ports:
+      - "127.0.0.1:9411:9411"
+    restart: unless-stopped
+
+  monitor-service:
+    build:
+      context: .
+      args:
+        MODULE_NAME: monitor-service
+    container_name: smart-law-monitor
+    environment:
+      SBA_USERNAME: ${SBA_USERNAME:-smartlaw}
+      SBA_PASSWORD: ${SBA_PASSWORD:-}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-smart-law-local-internal-token}
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx320m -XX:ActiveProcessorCount=2
+    ports:
+      - "127.0.0.1:8090:8090"
+    restart: unless-stopped
 
   nacos:
     image: nacos/nacos-server:v2.3.2
@@ -38,13 +144,26 @@ services:
       SPRING_DATASOURCE_PLATFORM: derby
       NACOS_AUTH_ENABLE: "false"
     ports:
-      - "8848:8848"
-      - "9848:9848"
+      - "127.0.0.1:8848:8848"
+      - "127.0.0.1:9848:9848"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 20
+
+  nacos-config-init:
+    image: curlimages/curl:8.11.1
+    entrypoint: ["/bin/sh", "/nacos-config/publish.sh"]
+    environment:
+      NACOS_ADDR: nacos:8848
+      NACOS_CONFIG_GROUP: ${NACOS_CONFIG_GROUP:-SMART_LAW_DEV}
+      NACOS_CONFIG_NAMESPACE: ${NACOS_CONFIG_NAMESPACE:-}
+    volumes:
+      - ./config/nacos:/nacos-config:ro
+    depends_on:
+      nacos:
+        condition: service_healthy
 
   gateway:
     build:
@@ -53,12 +172,15 @@ services:
         MODULE_NAME: gateway-service
     container_name: smart-law-gateway
     environment:
-      NACOS_ADDR: nacos:8848
+      <<: *backend-environment
+      SBA_SERVICE_HOST: gateway
     ports:
-      - "8080:8080"
+      - "127.0.0.1:${GATEWAY_HOST_PORT:-8080}:8080"
     depends_on:
       nacos:
         condition: service_healthy
+      nacos-config-init:
+        condition: service_completed_successfully
     restart: on-failure
 
   auth-service:
@@ -68,16 +190,13 @@ services:
         MODULE_NAME: auth-service
     container_name: smart-law-auth-service
     environment:
+      <<: [*backend-environment, *mysql-environment]
       SERVER_PORT: 8081
-      NACOS_ADDR: nacos:8848
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
-      MYSQL_PASSWORD: root
-    depends_on:
-      mysql:
-        condition: service_healthy
-      nacos:
-        condition: service_healthy
+      SBA_SERVICE_HOST: auth-service
+      OAUTH2_ISSUER: http://localhost:${FRONTEND_HOST_PORT:-5173}
+      OAUTH2_REDIRECT_URIS: http://localhost:${FRONTEND_HOST_PORT:-5173}/oauth/callback,http://127.0.0.1:${FRONTEND_HOST_PORT:-5173}/oauth/callback
+      OAUTH2_SESSION_COOKIE_NAME: SMART_LAW_DOCKER_AUTH_SESSION
+    depends_on: *business-dependencies
     restart: on-failure
 
   lawyer-service:
@@ -87,16 +206,12 @@ services:
         MODULE_NAME: lawyer-service
     container_name: smart-law-lawyer-service
     environment:
+      <<: [*backend-environment, *mysql-environment]
       SERVER_PORT: 8082
-      NACOS_ADDR: nacos:8848
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
-      MYSQL_PASSWORD: root
-    depends_on:
-      mysql:
-        condition: service_healthy
-      nacos:
-        condition: service_healthy
+      SBA_SERVICE_HOST: lawyer-service
+      REDIS_HOST: redis
+      SENTINEL_DASHBOARD: sentinel-dashboard:8080
+    depends_on: *business-dependencies
     restart: on-failure
 
   appointment-service:
@@ -106,15 +221,15 @@ services:
         MODULE_NAME: appointment-service
     container_name: smart-law-appointment-service
     environment:
+      <<: [*backend-environment, *mysql-environment, *rabbit-environment]
       SERVER_PORT: 8083
-      NACOS_ADDR: nacos:8848
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
-      MYSQL_PASSWORD: root
+      SBA_SERVICE_HOST: appointment-service
+      SEATA_SERVER_ADDR: seata-server:8091
     depends_on:
-      mysql:
-        condition: service_healthy
-      nacos:
+      <<: *business-dependencies
+      seata-server:
+        condition: service_started
+      rabbitmq:
         condition: service_healthy
     restart: on-failure
 
@@ -125,21 +240,19 @@ services:
         MODULE_NAME: ai-service
     container_name: smart-law-ai-service
     environment:
+      <<: [*backend-environment, *mysql-environment]
       SERVER_PORT: 8084
-      NACOS_ADDR: nacos:8848
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
-      MYSQL_PASSWORD: root
-      MONGO_HOST: mongodb
-      MONGO_PORT: 27017
+      SBA_SERVICE_HOST: ai-service
+      REDIS_HOST: redis
+      SENTINEL_DASHBOARD: sentinel-dashboard:8080
+      DIFY_BASE_URL: ${DIFY_BASE_URL:-https://api.dify.ai/v1}
       DIFY_API_KEY: ${DIFY_API_KEY:-}
     depends_on:
-      mysql:
-        condition: service_healthy
-      mongodb:
+      <<: *business-dependencies
+      redis:
         condition: service_started
-      nacos:
-        condition: service_healthy
+      sentinel-dashboard:
+        condition: service_started
     restart: on-failure
 
   admin-service:
@@ -149,14 +262,42 @@ services:
         MODULE_NAME: admin-service
     container_name: smart-law-admin-service
     environment:
+      <<: [*backend-environment, *mysql-environment]
       SERVER_PORT: 8085
-      NACOS_ADDR: nacos:8848
-      MONGO_HOST: mongodb
-      MONGO_PORT: 27017
+      SBA_SERVICE_HOST: admin-service
+    depends_on: *business-dependencies
+    restart: on-failure
+
+  schedule-service:
+    build:
+      context: .
+      args:
+        MODULE_NAME: schedule-service
+    container_name: smart-law-schedule-service
+    environment:
+      <<: [*backend-environment, *mysql-environment]
+      SERVER_PORT: 8086
+      SBA_SERVICE_HOST: schedule-service
+      SEATA_SERVER_ADDR: seata-server:8091
     depends_on:
-      mongodb:
+      <<: *business-dependencies
+      seata-server:
         condition: service_started
-      nacos:
+    restart: on-failure
+
+  notification-service:
+    build:
+      context: .
+      args:
+        MODULE_NAME: notification-service
+    container_name: smart-law-notification-service
+    environment:
+      <<: [*backend-environment, *mysql-environment, *rabbit-environment]
+      SERVER_PORT: 8087
+      SBA_SERVICE_HOST: notification-service
+    depends_on:
+      <<: *business-dependencies
+      rabbitmq:
         condition: service_healthy
     restart: on-failure
 
@@ -165,10 +306,12 @@ services:
       context: ./frontend
     container_name: smart-law-frontend
     ports:
-      - "5173:80"
+      - "127.0.0.1:${FRONTEND_HOST_PORT:-5173}:80"
     depends_on:
       - gateway
 
 volumes:
   mysql-data:
   mongo-data:
+  rabbitmq-data:
+  seata-data:

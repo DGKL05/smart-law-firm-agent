@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: notification-service
+  config:
+    import:
+    - 'optional:file:./.env[.properties]'
+    - nacos:smart-law-shared.yml?group=${NACOS_CONFIG_GROUP:SMART_LAW_DEV}&refreshEnabled=false
+    - nacos:notification-service.yml?group=${NACOS_CONFIG_GROUP:SMART_LAW_DEV}&refreshEnabled=false
+  cloud:
+    nacos:
+      discovery:
+        group: ${NACOS_DISCOVERY_GROUP:DEFAULT_GROUP}
+        server-addr: ${NACOS_ADDR:localhost:8848}
+      config:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        namespace: ${NACOS_CONFIG_NAMESPACE:}
+  datasource:
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:root}

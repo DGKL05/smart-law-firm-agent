@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="01-全部后端" type="CompoundRunConfigurationType">
+    <toRun name="后端 01 auth-service" type="Application" />
+    <toRun name="后端 02 lawyer-service" type="Application" />
+    <toRun name="后端 03 schedule-service" type="Application" />
+    <toRun name="后端 04 notification-service" type="Application" />
+    <toRun name="后端 05 appointment-service" type="Application" />
+    <toRun name="后端 06 ai-service" type="Application" />
+    <toRun name="后端 07 admin-service" type="Application" />
+    <toRun name="后端 08 gateway-service" type="Application" />
+    <method v="2" />
+  </configuration>
+</component>

@@ -1,0 +1,33 @@
+server:
+  port: ${SERVER_PORT:8087}
+spring:
+  rabbitmq:
+    host: ${RABBITMQ_HOST:127.0.0.1}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:smartlaw}
+    password: ${RABBITMQ_PASSWORD:smartlaw-local-rabbit}
+    connection-timeout: 3s
+    listener:
+      simple:
+        acknowledge-mode: auto
+        concurrency: 1
+        max-concurrency: 1
+        prefetch: 8
+        default-requeue-rejected: false
+        missing-queues-fatal: false
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1s
+          max-interval: 4s
+          multiplier: 2
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3307}/smart_law_notification?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0

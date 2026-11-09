@@ -11,6 +11,7 @@
         <router-link to="/lawyer-center/schedule">可预约时间</router-link>
         <router-link to="/lawyer-center/appointments">预约管理</router-link>
         <router-link to="/lawyer-center/consultations">咨询回复</router-link>
+        <router-link to="/user/account">账号设置</router-link>
       </nav>
     </aside>
     <main class="lawyer-main">

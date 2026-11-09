@@ -17,6 +17,7 @@ public class LawFirm extends BaseEntity {
     private String phone;
     private String email;
     private String logoUrl;
+    private String photoUrl;
     private String description;
     private String specialties;
     private String licenseNo;

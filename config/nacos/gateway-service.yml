@@ -1,0 +1,54 @@
+server:
+  port: ${SERVER_PORT:8080}
+spring:
+  cloud:
+    gateway:
+      default-filters:
+      - RemoveRequestHeader=X-Internal-Token
+      - RemoveRequestHeader=TX_XID
+      routes:
+      - id: auth-service
+        uri: lb://auth-service
+        predicates:
+        - Path=/api/auth/**,/api/oauth2/**,/.well-known/oauth-authorization-server
+      - id: lawyer-public
+        uri: lb://lawyer-service
+        predicates:
+        - Path=/api/public/**
+      - id: lawyer-center
+        uri: lb://lawyer-service
+        predicates:
+        - Path=/api/lawyer-center/**
+      - id: auth-management
+        uri: lb://auth-service
+        predicates:
+        - Path=/api/admin/users/**,/api/admin/roles/**
+      - id: lawyer-management
+        uri: lb://lawyer-service
+        predicates:
+        - Path=/api/admin/law-firms/**,/api/admin/lawyers/**
+      - id: appointment-service
+        uri: lb://appointment-service
+        predicates:
+        - Path=/api/me/appointments/**,/api/me/cases/**,/api/me/consultations/**,/api/lawyer/appointments/**,/api/lawyer/consultations/**,/api/admin/appointments/**,/api/admin/cases/**,/api/admin/consultations/**
+      - id: schedule-service
+        uri: lb://schedule-service
+        predicates:
+        - Path=/api/lawyer/schedules/**,/api/lawyer/schedule-blocks/**,/api/admin/schedules/**,/api/admin/schedule-blocks/**
+      - id: notification-service
+        uri: lb://notification-service
+        predicates:
+        - Path=/api/me/notifications/**,/api/admin/notifications/**,/api/admin/notification-templates/**
+      - id: ai-service
+        uri: lb://ai-service
+        predicates:
+        - Path=/api/ai/**,/api/agent/**
+      - id: admin-service
+        uri: lb://admin-service
+        predicates:
+        - Path=/api/admin/stats,/api/admin/audit-events/**
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

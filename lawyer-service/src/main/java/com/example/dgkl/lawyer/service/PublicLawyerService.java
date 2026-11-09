@@ -3,6 +3,7 @@ package com.example.dgkl.lawyer.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.dgkl.common.exception.BusinessException;
+import com.example.dgkl.common.response.ApiResponse;
 import com.example.dgkl.common.response.PageResult;
 import com.example.dgkl.lawyer.client.AppointmentClient;
 import com.example.dgkl.lawyer.dto.LawFirmDetailResponse;
@@ -12,29 +13,34 @@ import com.example.dgkl.lawyer.entity.LawFirm;
 import com.example.dgkl.lawyer.entity.Lawyer;
 import com.example.dgkl.lawyer.mapper.LawFirmMapper;
 import com.example.dgkl.lawyer.mapper.LawyerMapper;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PublicLawyerService {
     private final LawFirmMapper lawFirmMapper;
     private final LawyerMapper lawyerMapper;
     private final AppointmentClient appointmentClient;
+    private final PublicDirectoryCache directoryCache;
 
     public PageResult<LawFirm> lawFirms(int pageNum, int pageSize, String provinceCodes, String keyword) {
         LambdaQueryWrapper<LawFirm> query = new LambdaQueryWrapper<LawFirm>()
                 .eq(LawFirm::getDeleted, 0)
                 .orderByDesc(LawFirm::getId);
         if (StringUtils.hasText(provinceCodes)) {
-            query.in(LawFirm::getProvinceCode, Arrays.stream(provinceCodes.split(",")).filter(StringUtils::hasText).toList());
+            List<String> codes = Arrays.stream(provinceCodes.split(","))
+                    .map(String::strip)
+                    .filter(StringUtils::hasText)
+                    .toList();
+            query.in(!codes.isEmpty(), LawFirm::getProvinceCode, codes);
         }
         if (StringUtils.hasText(keyword)) {
             query.and(wrapper -> wrapper.like(LawFirm::getName, keyword)
@@ -46,7 +52,7 @@ public class PublicLawyerService {
     }
 
     public LawFirmDetailResponse lawFirmDetail(Long id) {
-        LawFirm firm = lawFirmMapper.selectById(id);
+        LawFirm firm = directoryCache.lawFirm(id);
         if (firm == null || Integer.valueOf(1).equals(firm.getDeleted())) {
             throw new BusinessException("律所不存在");
         }
@@ -59,7 +65,8 @@ public class PublicLawyerService {
         return LawFirmDetailResponse.of(firm, lawyers);
     }
 
-    public PageResult<LawyerResponse> lawyers(int pageNum, int pageSize, String category, Long lawFirmId, String keyword) {
+    public PageResult<LawyerResponse> lawyers(int pageNum, int pageSize, String category, Long lawFirmId,
+                                              String keyword) {
         LambdaQueryWrapper<Lawyer> query = new LambdaQueryWrapper<Lawyer>()
                 .eq(Lawyer::getDeleted, 0)
                 .orderByDesc(Lawyer::getId);
@@ -80,11 +87,11 @@ public class PublicLawyerService {
     }
 
     public LawyerResponse lawyerDetail(Long id) {
-        Lawyer lawyer = lawyerMapper.selectById(id);
+        Lawyer lawyer = directoryCache.lawyer(id);
         if (lawyer == null || Integer.valueOf(1).equals(lawyer.getDeleted())) {
             throw new BusinessException("律师不存在");
         }
-        LawFirm firm = lawFirmMapper.selectById(lawyer.getLawFirmId());
+        LawFirm firm = directoryCache.lawFirm(lawyer.getLawFirmId());
         return LawyerResponse.of(lawyer, firm == null ? "" : firm.getName(), safeSchedule(id));
     }
 
@@ -95,25 +102,13 @@ public class PublicLawyerService {
 
     private List<ScheduleSlotResponse> safeSchedule(Long lawyerId) {
         try {
-            return appointmentClient.schedule(lawyerId).getData();
-        } catch (Exception ignored) {
-            return defaultSchedule();
+            ApiResponse<List<ScheduleSlotResponse>> response = appointmentClient.schedule(lawyerId);
+            if (response != null && response.getCode() == 200 && response.getData() != null) {
+                return response.getData();
+            }
+        } catch (FeignException exception) {
+            log.warn("查询律师排班失败，lawyerId={}，下游状态={}", lawyerId, exception.status());
         }
-    }
-
-    private List<ScheduleSlotResponse> defaultSchedule() {
-        LocalDate date = LocalDate.now();
-        return java.util.stream.Stream.iterate(date.plusDays(1), day -> day.plusDays(1))
-                .filter(day -> day.getDayOfWeek().getValue() <= 5)
-                .limit(5)
-                .map(day -> {
-                    ScheduleSlotResponse slot = new ScheduleSlotResponse();
-                    slot.setDate(day.toString());
-                    slot.setStartTime(LocalDateTime.of(day, LocalTime.of(9, 0)).toString());
-                    slot.setEndTime(LocalDateTime.of(day, LocalTime.of(10, 0)).toString());
-                    slot.setAvailable(true);
-                    return slot;
-                })
-                .toList();
+        return List.of();
     }
 }

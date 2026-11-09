@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getAccessToken } from './oauth'
 
 const http = axios.create({
   baseURL: '',
@@ -14,7 +15,7 @@ export function postAiChat(payload) {
 }
 
 http.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  const token = getAccessToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -27,12 +28,13 @@ http.interceptors.response.use(
     if (body && body.code && body.code !== 200) {
       return Promise.reject(new Error(body.message || '请求失败'))
     }
-    return body?.data ?? body
+    return body && typeof body.code === 'number' ? body.data : body
   },
   (error) => {
     if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) {
-      return Promise.reject(new Error('智能法律助理响应时间较长，请稍后重试或简化问题后再发送'))
+      return Promise.reject(new Error('请求超时，请稍后重试'))
     }
+    if (error.response?.data?.message) error.message = error.response.data.message
     return Promise.reject(error)
   }
 )

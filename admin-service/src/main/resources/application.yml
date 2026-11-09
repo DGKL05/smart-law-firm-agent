@@ -1,17 +1,19 @@
-server:
-  port: ${SERVER_PORT:8085}
-
 spring:
   application:
     name: admin-service
+  config:
+    import:
+    - 'optional:file:./.env[.properties]'
+    - nacos:smart-law-shared.yml?group=${NACOS_CONFIG_GROUP:SMART_LAW_DEV}&refreshEnabled=false
+    - nacos:admin-service.yml?group=${NACOS_CONFIG_GROUP:SMART_LAW_DEV}&refreshEnabled=false
   cloud:
     nacos:
       discovery:
+        group: ${NACOS_DISCOVERY_GROUP:DEFAULT_GROUP}
         server-addr: ${NACOS_ADDR:localhost:8848}
-  data:
-    mongodb:
-      uri: mongodb://${MONGO_HOST:localhost}:${MONGO_PORT:27017}/smart_law_agent
-
-jwt:
-  secret: ${JWT_SECRET:smart-law-firm-local-dev-secret-key-change-before-prod-2026}
-  expiration: ${JWT_EXPIRATION:86400000}
+      config:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        namespace: ${NACOS_CONFIG_NAMESPACE:}
+  datasource:
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:root}

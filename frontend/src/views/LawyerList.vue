@@ -43,7 +43,10 @@
 
       <div v-if="records.length" class="lawyer-directory-grid">
         <article v-for="lawyer in records" :key="lawyer.id" class="directory-card lawyer-directory-card">
-          <div class="lawyer-avatar large-card-avatar">{{ lawyer.name?.slice(0, 1) }}</div>
+          <div class="lawyer-avatar large-card-avatar">
+            <img v-if="lawyer.avatarUrl" :src="lawyer.avatarUrl" :alt="lawyer.name + '的头像'" class="lawyer-photo" />
+            <span v-else>{{ lawyer.name?.slice(0, 1) }}</span>
+          </div>
           <div class="directory-card-main">
             <div class="directory-card-head">
               <div>
@@ -62,17 +65,10 @@
               </el-tag>
             </div>
 
-            <div class="slot-list compact lawyer-slot-strip">
-              <el-tag v-for="slot in splitSlots(lawyer.availableTimeSlots).slice(0, 3)" :key="slot" effect="plain">
-                {{ slot }}
-              </el-tag>
-              <el-tag v-if="!splitSlots(lawyer.availableTimeSlots).length" effect="plain">工作日可预约</el-tag>
-            </div>
-
             <div class="directory-card-foot">
               <span>{{ lawyer.phone || '联系方式待补充' }}</span>
               <el-button type="primary" plain :icon="ArrowRight" @click="$router.push(`/lawyers/${lawyer.id}`)">
-                查看详情
+                详情与排班
               </el-button>
             </div>
           </div>
@@ -141,12 +137,12 @@ function splitText(value) {
   return (value || '').split(/[、,，\s]+/).map((item) => item.trim()).filter(Boolean)
 }
 
-function splitSlots(value) {
-  return (value || '').split(',').map((item) => item.trim()).filter(Boolean)
-}
-
 onMounted(async () => {
   await loadLawFirms()
   await load()
 })
 </script>
+
+<style scoped>
+.lawyer-photo { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+</style>

@@ -13,26 +13,13 @@
         </div>
         <div>
           <div class="muted">{{ item.label }}</div>
-          <div class="metric-number">{{ stats[item.key] || 0 }}</div>
+          <div class="metric-number">{{ stats[item.key] ?? '—' }}</div>
         </div>
       </el-card>
     </div>
-    <el-card shadow="never" class="work-card overview-panel">
-      <div class="desk-toolbar">
-        <div>
-          <div class="desk-title">验收能力覆盖</div>
-          <div class="muted">当前基础版本覆盖课程要求的关键技术点</div>
-        </div>
-      </div>
-      <div class="capability-list">
-        <span>Spring Security + JWT</span>
-        <span>MyBatis-Plus 分页</span>
-        <span>Redis 热点缓存</span>
-        <span>MongoDB 操作日志</span>
-        <span>Vue3 动态渲染</span>
-        <span>后台角色授权</span>
-      </div>
-    </el-card>
+    <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
+    <el-alert v-else-if="stats.unavailableServices?.length"
+      :title="'部分统计暂不可用：' + stats.unavailableServices.join('、')" type="warning" show-icon :closable="false" />
   </section>
 </template>
 
@@ -41,15 +28,24 @@ import { onMounted, ref } from 'vue'
 import http from '../api/http'
 
 const stats = ref({})
+const error = ref('')
 const items = [
   { key: 'userCount', label: '用户数', icon: 'User' },
   { key: 'lawFirmCount', label: '律所数', icon: 'OfficeBuilding' },
   { key: 'lawyerCount', label: '律师数', icon: 'Avatar' },
   { key: 'consultationCount', label: '咨询数', icon: 'ChatLineRound' },
-  { key: 'appointmentCount', label: '预约数', icon: 'Calendar' }
+  { key: 'appointmentCount', label: '预约数', icon: 'Calendar' },
+  { key: 'caseCount', label: '案件数', icon: 'Document' },
+  { key: 'scheduleCount', label: '排班规则', icon: 'Clock' },
+  { key: 'notificationCount', label: '通知数', icon: 'Bell' },
+  { key: 'sessionCount', label: 'AI 会话', icon: 'Service' }
 ]
 
 onMounted(async () => {
-  stats.value = await http.get('/api/admin/stats')
+  try {
+    stats.value = await http.get('/api/admin/stats')
+  } catch (failure) {
+    error.value = failure.message
+  }
 })
 </script>

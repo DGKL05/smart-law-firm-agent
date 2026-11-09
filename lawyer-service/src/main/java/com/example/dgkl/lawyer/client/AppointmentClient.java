@@ -11,5 +11,8 @@ import java.util.List;
 @FeignClient(name = "appointment-service")
 public interface AppointmentClient {
     @GetMapping("/internal/schedule/lawyers/{lawyerId}")
-    ApiResponse<List<ScheduleSlotResponse>> schedule(@PathVariable Long lawyerId);
+    ApiResponse<List<ScheduleSlotResponse>> schedule(@PathVariable("lawyerId") Long lawyerId);
+
+    @GetMapping("/internal/appointments/lawyers/{lawyerId}/has-active-work")
+    ApiResponse<Boolean> hasActiveWork(@PathVariable("lawyerId") Long lawyerId);
 }

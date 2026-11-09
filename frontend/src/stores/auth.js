@@ -1,10 +1,13 @@
 import { defineStore } from 'pinia'
 import http from '../api/http'
+import {
+  clearOAuthSession, completeAuthorization, getAccessToken, getProfile, storeAccessToken, storeProfile
+} from '../api/oauth'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    token: localStorage.getItem('token') || '',
-    user: JSON.parse(localStorage.getItem('user') || 'null')
+    token: getAccessToken(),
+    user: getProfile()
   }),
   getters: {
     isLogin: (state) => Boolean(state.token),
@@ -12,18 +15,35 @@ export const useAuthStore = defineStore('auth', {
     isLawyer: (state) => state.user?.roles?.includes('LAWYER')
   },
   actions: {
-    async login(form) {
-      const data = await http.post('/api/auth/login', form)
-      this.token = data.token
-      this.user = data
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data))
+    async finishLogin(query) {
+      const token = await completeAuthorization(query)
+      storeAccessToken(token)
+      try {
+        this.user = await http.get('/api/auth/me')
+        this.token = getAccessToken()
+        storeProfile(this.user)
+      } catch (error) {
+        this.clear()
+        throw error
+      }
     },
-    logout() {
+    updateProfile(profile) {
+      this.user = { ...this.user, ...profile }
+      storeProfile(this.user)
+    },
+    async logout() {
+      try {
+        if (getAccessToken()) await http.post('/api/auth/logout')
+      } catch (error) {
+        if (error.response?.status !== 401) throw error
+      } finally {
+        this.clear()
+      }
+    },
+    clear() {
       this.token = ''
       this.user = null
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
+      clearOAuthSession()
     }
   }
 })

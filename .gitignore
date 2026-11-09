@@ -35,3 +35,5 @@ build/
 
 ### VS Code ###
 .vscode/
+/.env
+/docker/sentinel/sentinel-dashboard.jar

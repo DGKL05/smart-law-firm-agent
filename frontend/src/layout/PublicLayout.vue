@@ -22,13 +22,18 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
 
-function logout() {
-  auth.logout()
-  router.push('/login')
+async function logout() {
+  try {
+    await auth.logout()
+  } catch {
+    ElMessage.warning('本地已退出，服务端未确认撤销登录凭证')
+  }
+  await router.push('/login')
 }
 </script>

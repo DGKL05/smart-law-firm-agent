@@ -1,2 +1,4 @@
 /mvnw text eol=lf
+*.java text eol=lf
+/config/nacos/publish.sh text eol=lf
 *.cmd text eol=crlf

@@ -1,9 +1,13 @@
 <template>
   <section class="page detail-page">
-    <el-card class="detail-sheet profile-sheet editorial-sheet" shadow="never">
+    <el-alert v-if="loadError" :title="loadError" type="error" show-icon :closable="false" />
+    <el-card v-else v-loading="loading" class="detail-sheet profile-sheet editorial-sheet" shadow="never">
       <div class="profile-hero lawyer-hero lawyer-profile-hero">
         <div class="lawyer-identity">
-          <div class="large-avatar">{{ item.name?.slice(0, 1) }}</div>
+          <div class="large-avatar">
+            <img v-if="item.avatarUrl" :src="item.avatarUrl" :alt="item.name + '的头像'" class="lawyer-photo" />
+            <span v-else>{{ item.name?.slice(0, 1) }}</span>
+          </div>
           <div>
             <div class="profile-kicker">{{ item.lawFirmName }}</div>
             <h1 class="page-title">{{ item.name }}</h1>
@@ -72,10 +76,11 @@
         <div class="desk-toolbar">
           <div>
             <div class="desk-title">可预约法律咨询时间</div>
-            <div class="muted">默认展示接下来 5 个工作日；灰色时段已过期、已被预约或律师有案件安排</div>
+            <div class="muted">按律师最新排班展示。已占用、已过期和停诊时段不可预约。</div>
           </div>
           <span class="record-count">{{ availableSlots.length }} / {{ scheduleSlots.length }} 可约</span>
         </div>
+        <el-empty v-if="!scheduleSlots.length" description="暂无开放时段" />
         <div class="appointment-grid polished-appointment-grid">
           <article
             v-for="slot in scheduleSlots"
@@ -109,10 +114,11 @@
         </div>
         <div v-if="activeAppointments.length" class="appointment-grid polished-appointment-grid">
           <article v-for="appointment in activeAppointments" :key="appointment.id" class="appointment-card mine polished-appointment-card">
-            <span class="appointment-mark">已预约</span>
+            <span class="appointment-mark">{{ appointment.status }}</span>
             <strong>{{ formatDateTime(appointment.appointmentTime) }}</strong>
             <small>{{ appointment.remark || '法律咨询预约' }}</small>
             <el-button
+              v-if="appointment.status !== '取消处理中'"
               type="danger"
               plain
               size="small"
@@ -153,10 +159,12 @@ const item = ref({})
 const appointments = ref([])
 const bookingTime = ref('')
 const cancellingId = ref(null)
+const loading = ref(true)
+const loadError = ref('')
 const scheduleSlots = computed(() => item.value.scheduleSlots || [])
 const availableSlots = computed(() => scheduleSlots.value.filter((slot) => slot.available))
 const activeAppointments = computed(() => appointments.value.filter((appointment) => {
-  const inactiveStatuses = ['已取消', '已完成']
+  const inactiveStatuses = ['已取消', '已完成', '预约失败']
   return appointment.lawyerId === Number(route.params.id) && !inactiveStatuses.includes(appointment.status)
 }))
 const goodAtTags = computed(() => splitText(item.value.goodAt))
@@ -206,13 +214,17 @@ async function book(slot) {
   }
   bookingTime.value = slot.startTime
   try {
-    await http.post('/api/me/appointments/book', {
+    const result = await http.post('/api/me/appointments/book', {
       lawyerId: Number(route.params.id),
       appointmentTime: slot.startTime,
       remark: `${item.value.name} 法律咨询`
     })
-    ElMessage.success('预约成功')
+    if (result.status === '已预约') ElMessage.success('预约成功')
+    else if (result.status === '预约失败') ElMessage.warning(result.failureReason || '该时段无法预约')
+    else ElMessage.info('预约请求已受理，请在我的预约中查看结果')
     await Promise.all([loadDetail(), loadAppointments()])
+  } catch (error) {
+    ElMessage.error(error.message)
   } finally {
     bookingTime.value = ''
   }
@@ -221,16 +233,33 @@ async function book(slot) {
 async function cancelAppointment(appointment) {
   cancellingId.value = appointment.id
   try {
-    await http.put(`/api/me/appointments/${appointment.id}/cancel`)
-    ElMessage.success('已取消预约')
+    const result = await http.put('/api/me/appointments/' + appointment.id + '/cancel')
+    if (result.status === '已取消') ElMessage.success('已取消预约')
+    else ElMessage.info('取消请求已受理，请稍后查看结果')
     await Promise.all([loadDetail(), loadAppointments()])
+  } catch (error) {
+    ElMessage.error(error.message)
   } finally {
     cancellingId.value = null
   }
 }
 
 onMounted(async () => {
-  await loadDetail()
-  await loadAppointments()
+  try {
+    await loadDetail()
+  } catch (error) {
+    loadError.value = error.message
+  } finally {
+    loading.value = false
+  }
+  try {
+    await loadAppointments()
+  } catch (error) {
+    ElMessage.warning(error.message)
+  }
 })
 </script>
+
+<style scoped>
+.lawyer-photo { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+</style>

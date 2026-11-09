@@ -1,48 +1,35 @@
 package com.example.dgkl.lawyer.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.example.dgkl.common.exception.BusinessException;
 import com.example.dgkl.common.response.ApiResponse;
 import com.example.dgkl.lawyer.dto.LawyerSnapshotResponse;
-import com.example.dgkl.lawyer.entity.LawFirm;
-import com.example.dgkl.lawyer.entity.Lawyer;
-import com.example.dgkl.lawyer.mapper.LawFirmMapper;
-import com.example.dgkl.lawyer.mapper.LawyerMapper;
+import com.example.dgkl.lawyer.service.LawyerService;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
-@RequestMapping("/internal/lawyers")
+@RequestMapping("/internal")
 @RequiredArgsConstructor
 public class InternalLawyerController {
-    private final LawyerMapper lawyerMapper;
-    private final LawFirmMapper lawFirmMapper;
+    private final LawyerService lawyerService;
 
-    @GetMapping("/{id}/snapshot")
-    public ApiResponse<LawyerSnapshotResponse> snapshot(@PathVariable Long id) {
-        return ApiResponse.success(toSnapshot(requireLawyer(lawyerMapper.selectById(id))));
+    @GetMapping("/lawyers/{id}/snapshot")
+    public ApiResponse<LawyerSnapshotResponse> snapshot(@PathVariable @Positive Long id) {
+        return ApiResponse.success(lawyerService.snapshot(id));
     }
 
-    @GetMapping("/by-user/{userId}/snapshot")
-    public ApiResponse<LawyerSnapshotResponse> snapshotByUserId(@PathVariable Long userId) {
-        Lawyer lawyer = lawyerMapper.selectOne(new LambdaQueryWrapper<Lawyer>()
-                .eq(Lawyer::getUserId, userId)
-                .eq(Lawyer::getDeleted, 0));
-        return ApiResponse.success(toSnapshot(requireLawyer(lawyer)));
+    @GetMapping("/lawyers/by-user/{userId}/snapshot")
+    public ApiResponse<LawyerSnapshotResponse> snapshotByUserId(@PathVariable @Positive Long userId) {
+        return ApiResponse.success(lawyerService.snapshotByUserId(userId));
     }
 
-    private Lawyer requireLawyer(Lawyer lawyer) {
-        if (lawyer == null || Integer.valueOf(1).equals(lawyer.getDeleted())) {
-            throw new BusinessException("律师不存在");
-        }
-        return lawyer;
-    }
-
-    private LawyerSnapshotResponse toSnapshot(Lawyer lawyer) {
-        LawFirm firm = lawFirmMapper.selectById(lawyer.getLawFirmId());
-        return LawyerSnapshotResponse.of(lawyer, firm == null ? null : firm.getName());
+    @GetMapping("/admin/stats")
+    public ApiResponse<Map<String, Long>> stats() {
+        return ApiResponse.success(lawyerService.stats());
     }
 }

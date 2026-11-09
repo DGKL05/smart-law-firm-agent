@@ -1,0 +1,27 @@
+USE smart_law_notification;
+
+CREATE TABLE IF NOT EXISTS notification (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  event_key VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
+  user_id BIGINT NOT NULL,
+  title VARCHAR(128) NOT NULL,
+  content VARCHAR(500) NOT NULL,
+  read_flag TINYINT NOT NULL DEFAULT 0,
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted TINYINT NOT NULL DEFAULT 0,
+  UNIQUE KEY uk_notification_event_key (event_key),
+  KEY idx_notification_user (user_id, deleted, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS notification_template (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  code VARCHAR(64) NOT NULL,
+  title VARCHAR(128) NOT NULL,
+  content VARCHAR(500) NOT NULL,
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted TINYINT NOT NULL DEFAULT 0,
+  active_code VARCHAR(64) GENERATED ALWAYS AS (CASE WHEN deleted = 0 THEN code END) STORED,
+  UNIQUE KEY uk_notification_template_active_code (active_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

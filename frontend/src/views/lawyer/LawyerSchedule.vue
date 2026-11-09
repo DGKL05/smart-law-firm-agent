@@ -1,6 +1,15 @@
 <template>
-  <section class="page">
-    <h1>可预约时间</h1>
-    <el-alert title="默认周一至周五 09:00-17:00 可预约；已预约或案件占用时段会在后续业务迁移中返回为不可选。" type="info" show-icon />
-  </section>
+  <div class="calendar-tools">
+    <CrudPage :config="lawyerConfigs.schedules" />
+    <CrudPage :config="lawyerConfigs.scheduleBlocks" />
+  </div>
 </template>
+
+<script setup>
+import CrudPage from '../../components/CrudPage.vue'
+import { lawyerConfigs } from '../crudConfigs'
+</script>
+
+<style scoped>
+.calendar-tools { display: grid; gap: 26px; }
+</style>

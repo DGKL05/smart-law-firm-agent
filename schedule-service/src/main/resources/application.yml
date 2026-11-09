@@ -1,0 +1,34 @@
+spring:
+  application:
+    name: schedule-service
+  config:
+    import:
+    - 'optional:file:./.env[.properties]'
+    - nacos:smart-law-shared.yml?group=${NACOS_CONFIG_GROUP:SMART_LAW_DEV}&refreshEnabled=false
+    - nacos:schedule-service.yml?group=${NACOS_CONFIG_GROUP:SMART_LAW_DEV}&refreshEnabled=false
+  cloud:
+    nacos:
+      discovery:
+        group: ${NACOS_DISCOVERY_GROUP:DEFAULT_GROUP}
+        server-addr: ${NACOS_ADDR:localhost:8848}
+      config:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        namespace: ${NACOS_CONFIG_NAMESPACE:}
+  datasource:
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:root}
+
+seata:
+  application-id: ${spring.application.name}
+  tx-service-group: smart-law-tx-group
+  enable-auto-data-source-proxy: true
+  data-source-proxy-mode: AT
+  registry:
+    type: file
+  config:
+    type: file
+  service:
+    vgroup-mapping:
+      smart-law-tx-group: default
+    grouplist:
+      default: ${SEATA_SERVER_ADDR:127.0.0.1:8091}

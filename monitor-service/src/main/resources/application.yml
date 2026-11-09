@@ -1,0 +1,14 @@
+server:
+  port: 8090
+spring:
+  application:
+    name: smart-law-monitor
+  security:
+    user:
+      name: ${SBA_USERNAME:smartlaw}
+      password: ${SBA_PASSWORD}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

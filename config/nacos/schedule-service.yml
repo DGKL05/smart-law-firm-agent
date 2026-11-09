@@ -1,0 +1,19 @@
+server:
+  port: ${SERVER_PORT:8086}
+spring:
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 1500
+            readTimeout: 3000
+            loggerLevel: BASIC
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3307}/smart_law_schedule?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+logging:
+  level:
+    com.example.dgkl.schedule.client: DEBUG
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true

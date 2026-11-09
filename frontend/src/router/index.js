@@ -6,6 +6,7 @@ import AdminLayout from '../layout/AdminLayout.vue'
 import LawyerLayout from '../layout/LawyerLayout.vue'
 import Home from '../views/Home.vue'
 import Login from '../views/Login.vue'
+import OAuthCallback from '../views/OAuthCallback.vue'
 import Register from '../views/Register.vue'
 import LawFirmList from '../views/LawFirmList.vue'
 import LawFirmDetail from '../views/LawFirmDetail.vue'
@@ -18,7 +19,9 @@ import LawyerAppointments from '../views/lawyer/LawyerAppointments.vue'
 import LawyerConsultations from '../views/lawyer/LawyerConsultations.vue'
 import GenericCrudView from '../views/GenericCrudView.vue'
 import AdminStats from '../views/AdminStats.vue'
+import AccountSettings from '../views/AccountSettings.vue'
 import { userConfigs, adminConfigs } from '../views/crudConfigs'
+import { getAccessToken } from '../api/oauth'
 
 const userRoutes = Object.entries(userConfigs).map(([path, config]) => ({
   path,
@@ -36,6 +39,7 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login', component: Login },
+    { path: '/oauth/callback', component: OAuthCallback },
     { path: '/register', component: Register },
     {
       path: '/',
@@ -52,7 +56,11 @@ const router = createRouter({
       path: '/user',
       component: UserLayout,
       meta: { requiresAuth: true },
-      children: userRoutes
+      children: [
+        { path: '', redirect: '/user/consultations' },
+        { path: 'account', component: AccountSettings },
+        ...userRoutes
+      ]
     },
     {
       path: '/lawyer-center',
@@ -81,6 +89,7 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
+  if (auth.isLogin && !getAccessToken()) auth.clear()
   if (to.meta.requiresAuth && !auth.isLogin) {
     return '/login'
   }

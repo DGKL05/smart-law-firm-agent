@@ -1,0 +1,55 @@
+USE smart_law_schedule;
+
+CREATE TABLE IF NOT EXISTS lawyer_schedule (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  lawyer_id BIGINT UNSIGNED NOT NULL,
+  weekday TINYINT UNSIGNED NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  enabled TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  KEY idx_lawyer_weekday (lawyer_id, weekday)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS schedule_block (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  lawyer_id BIGINT UNSIGNED NOT NULL,
+  start_time DATETIME NOT NULL,
+  end_time DATETIME NOT NULL,
+  reason VARCHAR(256) NOT NULL,
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  KEY idx_lawyer_start (lawyer_id, start_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS schedule_lawyer_guard (
+  lawyer_id BIGINT UNSIGNED PRIMARY KEY,
+  guard_version BIGINT NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS undo_log (
+  branch_id BIGINT NOT NULL,
+  xid VARCHAR(128) NOT NULL,
+  context VARCHAR(128) NOT NULL,
+  rollback_info LONGBLOB NOT NULL,
+  log_status INT NOT NULL,
+  log_created DATETIME(6) NOT NULL,
+  log_modified DATETIME(6) NOT NULL,
+  UNIQUE KEY ux_undo_log (xid, branch_id),
+  KEY ix_log_created (log_created)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS schedule_reservation (
+  appointment_id BIGINT UNSIGNED PRIMARY KEY,
+  lawyer_id BIGINT UNSIGNED NOT NULL,
+  slot_start DATETIME NOT NULL,
+  status VARCHAR(16) NOT NULL,
+  active_slot_start DATETIME GENERATED ALWAYS AS (CASE WHEN status = 'RESERVED' THEN slot_start END) STORED,
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_lawyer_active_slot (lawyer_id, active_slot_start),
+  KEY idx_lawyer_status_slot (lawyer_id, status, slot_start)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

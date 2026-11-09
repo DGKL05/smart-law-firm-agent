@@ -83,9 +83,7 @@ ON DUPLICATE KEY UPDATE
   status = VALUES(status),
   deleted = 0;
 
-USE smart_law_appointment;
-
-DELETE FROM lawyer_schedule WHERE lawyer_id BETWEEN 1 AND 6;
+USE smart_law_schedule;
 
 INSERT INTO lawyer_schedule (lawyer_id, weekday, start_time, end_time, enabled) VALUES
   (1, 1, '09:00:00', '17:00:00', 1), (1, 2, '09:00:00', '17:00:00', 1), (1, 3, '09:00:00', '17:00:00', 1), (1, 4, '09:00:00', '17:00:00', 1), (1, 5, '09:00:00', '17:00:00', 1),
@@ -94,6 +92,8 @@ INSERT INTO lawyer_schedule (lawyer_id, weekday, start_time, end_time, enabled) 
   (4, 1, '09:00:00', '17:00:00', 1), (4, 2, '09:00:00', '17:00:00', 1), (4, 3, '09:00:00', '17:00:00', 1), (4, 4, '09:00:00', '17:00:00', 1), (4, 5, '09:00:00', '17:00:00', 1),
   (5, 1, '09:00:00', '17:00:00', 1), (5, 2, '09:00:00', '17:00:00', 1), (5, 3, '09:00:00', '17:00:00', 1), (5, 4, '09:00:00', '17:00:00', 1), (5, 5, '09:00:00', '17:00:00', 1),
   (6, 1, '09:00:00', '17:00:00', 1), (6, 2, '09:00:00', '17:00:00', 1), (6, 3, '09:00:00', '17:00:00', 1), (6, 4, '09:00:00', '17:00:00', 1), (6, 5, '09:00:00', '17:00:00', 1);
+
+USE smart_law_appointment;
 
 INSERT INTO legal_case (id, user_id, lawyer_id, title, start_time, end_time, status, deleted) VALUES
   (1, 2, 1, '互联网公司劳动仲裁开庭', '2026-07-06 10:00:00', '2026-07-06 12:00:00', 'ACTIVE', 0),
@@ -122,3 +122,10 @@ ON DUPLICATE KEY UPDATE
   status = VALUES(status),
   remark = VALUES(remark),
   deleted = VALUES(deleted);
+
+USE smart_law_schedule;
+
+INSERT IGNORE INTO schedule_reservation (appointment_id, lawyer_id, slot_start, status)
+SELECT id, lawyer_id, appointment_time, 'RESERVED'
+FROM smart_law_appointment.appointment
+WHERE status = '已预约' AND deleted = 0;

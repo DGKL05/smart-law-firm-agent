@@ -3,6 +3,7 @@
     <el-card class="detail-sheet profile-sheet editorial-sheet" shadow="never">
       <div class="profile-hero firm-profile-hero">
         <div>
+          <img v-if="item.photoUrl" :src="item.photoUrl" :alt="item.name + '的律所照片'" class="firm-photo" />
           <div class="profile-kicker">{{ item.provinceName }} · {{ item.city }}</div>
           <h1 class="page-title">{{ item.name }}</h1>
           <p class="profile-summary">{{ item.description || '该律所暂未填写详细介绍。' }}</p>
@@ -86,7 +87,10 @@
         </div>
         <div v-if="lawyers.length" class="lawyer-card-grid polished-lawyer-grid">
           <article v-for="lawyer in lawyers" :key="lawyer.id" class="lawyer-card polished-lawyer-card">
-            <div class="lawyer-avatar">{{ lawyer.name?.slice(0, 1) }}</div>
+            <div class="lawyer-avatar">
+              <img v-if="lawyer.avatarUrl" :src="lawyer.avatarUrl" :alt="lawyer.name + '的头像'" class="lawyer-photo" />
+              <span v-else>{{ lawyer.name?.slice(0, 1) }}</span>
+            </div>
             <div class="lawyer-card-body">
               <div class="card-title-row">
                 <h3>{{ lawyer.name }}</h3>
@@ -140,3 +144,8 @@ onMounted(async () => {
   item.value = await http.get(`/api/public/law-firms/${route.params.id}`)
 })
 </script>
+
+<style scoped>
+.firm-photo { display: block; width: min(100%, 360px); max-height: 170px; object-fit: cover; border-radius: 10px; margin-bottom: 14px; }
+.lawyer-photo { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+</style>

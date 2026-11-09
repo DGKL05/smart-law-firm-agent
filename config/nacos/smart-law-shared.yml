@@ -1,0 +1,27 @@
+smart-law:
+  feign:
+    connect-timeout-ms: 2000
+    read-timeout-ms: 5000
+spring:
+  boot:
+    admin:
+      client:
+        url: ${SBA_URL:http://127.0.0.1:8090}
+        username: ${SBA_USERNAME:smartlaw}
+        password: ${SBA_PASSWORD:}
+        instance:
+          service-url: http://${SBA_SERVICE_HOST:host.docker.internal}:${server.port}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:1.0}
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://127.0.0.1:9411/api/v2/spans}

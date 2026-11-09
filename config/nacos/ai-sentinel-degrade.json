@@ -1,0 +1,10 @@
+[
+  {
+    "resource": "ai:dify-chat",
+    "grade": 1,
+    "count": 0.5,
+    "minRequestAmount": 5,
+    "statIntervalMs": 10000,
+    "timeWindow": 15
+  }
+]

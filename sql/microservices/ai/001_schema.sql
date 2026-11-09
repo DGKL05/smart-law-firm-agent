@@ -1,5 +1,10 @@
 USE smart_law_ai;
 
+CREATE TABLE IF NOT EXISTS ai_chat_guard (
+  guard_key VARCHAR(64) PRIMARY KEY,
+  owner_token CHAR(36) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS ai_chat_session (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   user_id BIGINT NOT NULL,

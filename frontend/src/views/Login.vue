@@ -15,15 +15,21 @@
           <div class="muted">管理员：admin / 123456</div>
         </div>
       </template>
-      <el-form :model="form" label-position="top">
+      <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
+      <el-form :model="form" label-position="top" method="post" action="/api/oauth2/login" @submit="submit">
+        <input v-if="csrf" type="hidden" :name="csrf.parameterName" :value="csrf.token" />
         <el-form-item label="用户名" required>
-          <el-input v-model="form.username" size="large" />
+          <el-input v-model="form.username" name="username" autocomplete="username" size="large" />
         </el-form-item>
         <el-form-item label="密码" required>
-          <el-input v-model="form.password" size="large" type="password" show-password @keyup.enter="submit" />
+          <el-input v-model="form.password" name="password" autocomplete="current-password"
+            size="large" type="password" show-password />
         </el-form-item>
+        <el-button v-if="csrf" type="primary" native-type="submit" size="large"
+          style="width: 100%" :loading="submitting">登录系统</el-button>
       </el-form>
-      <el-button type="primary" size="large" style="width: 100%" @click="submit">登录系统</el-button>
+      <el-button v-if="!csrf" type="primary" size="large" style="width: 100%"
+        :loading="loading" @click="prepareLogin">继续登录</el-button>
       <div style="margin-top: 16px; text-align: center">
         <router-link class="muted" to="/register">创建普通用户账号</router-link>
       </div>
@@ -32,18 +38,40 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { useAuthStore } from '../stores/auth'
+import { onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import http from '../api/http'
+import { beginAuthorization } from '../api/oauth'
 
-const router = useRouter()
-const auth = useAuthStore()
+const route = useRoute()
 const form = reactive({ username: 'admin', password: '123456' })
+const csrf = ref(null)
+const error = ref(route.query.error === '1' ? '用户名或密码错误，或账号已停用' : '')
+const loading = ref(false)
+const submitting = ref(false)
 
-async function submit() {
-  await auth.login(form)
-  ElMessage.success('登录成功')
-  router.push(auth.isAdmin ? '/admin/stats' : '/user/consultations')
+async function prepareLogin() {
+  loading.value = true
+  try {
+    if (route.query.oauth === '1') {
+      csrf.value = await http.get('/api/oauth2/csrf')
+    } else {
+      await beginAuthorization()
+    }
+  } catch (failure) {
+    error.value = failure.message
+  } finally {
+    loading.value = false
+  }
 }
+
+function submit(event) {
+  if (!csrf.value || submitting.value || !form.username.trim() || !form.password) {
+    event.preventDefault()
+    return
+  }
+  submitting.value = true
+}
+
+onMounted(prepareLogin)
 </script>

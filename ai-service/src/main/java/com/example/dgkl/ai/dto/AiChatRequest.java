@@ -1,10 +1,11 @@
 package com.example.dgkl.ai.dto;
 
-import lombok.Data;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
-@Data
-public class AiChatRequest {
-    private Long sessionId;
-    private String query;
-    private String conversationId;
+public record AiChatRequest(
+        @Positive Long sessionId,
+        @NotBlank @Size(max = 8000) String query,
+        @Size(max = 128) String conversationId) {
 }

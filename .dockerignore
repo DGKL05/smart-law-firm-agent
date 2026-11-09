@@ -1,4 +1,6 @@
 .git
+.env
+docker/sentinel/sentinel-dashboard.jar
 .idea
 .superpowers
 frontend/node_modules

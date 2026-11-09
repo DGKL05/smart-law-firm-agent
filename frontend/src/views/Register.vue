@@ -22,7 +22,7 @@
         <el-form-item label="手机"><el-input v-model="form.phone" size="large" /></el-form-item>
         <el-form-item label="邮箱"><el-input v-model="form.email" size="large" /></el-form-item>
       </el-form>
-      <el-button type="primary" size="large" style="width: 100%" @click="submit">创建账号</el-button>
+      <el-button type="primary" size="large" style="width: 100%" :loading="submitting" @click="submit">创建账号</el-button>
       <div style="margin-top: 16px; text-align: center">
         <router-link class="muted" to="/login">已有账号，返回登录</router-link>
       </div>
@@ -31,17 +31,26 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import http from '../api/http'
 
 const router = useRouter()
 const form = reactive({ username: '', password: '', nickname: '', phone: '', email: '' })
+const submitting = ref(false)
 
 async function submit() {
-  await http.post('/api/auth/register', form)
-  ElMessage.success('注册成功，请登录')
-  router.push('/login')
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    await http.post('/api/auth/register', form)
+    ElMessage.success('注册成功，请登录')
+    await router.push('/login')
+  } catch (error) {
+    ElMessage.error(error.message)
+  } finally {
+    submitting.value = false
+  }
 }
 </script>

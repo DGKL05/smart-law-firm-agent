@@ -3,9 +3,11 @@ package com.example.dgkl.appointment;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.mybatis.spring.annotation.MapperScan;
 
 @EnableFeignClients
+@EnableScheduling
 @MapperScan("com.example.dgkl.appointment.mapper")
 @SpringBootApplication(scanBasePackages = {"com.example.dgkl.appointment", "com.example.dgkl.common"})
 public class AppointmentServiceApplication {

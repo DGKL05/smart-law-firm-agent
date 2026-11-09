@@ -1,6 +1,7 @@
 package com.example.dgkl.appointment.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.example.dgkl.common.entity.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -20,4 +21,7 @@ public class Appointment extends BaseEntity {
     private Integer durationMinutes;
     private String status;
     private String remark;
+    private String failureReason;
+    @JsonIgnore
+    private LocalDateTime nextSyncTime;
 }
